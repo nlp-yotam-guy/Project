@@ -1,7 +1,7 @@
 import numpy as np
 
 #Creating an embedding matrix
-sent = ["Guy", "is", "great", "in", "soccer"]
+sent = ["guy", "is", "great", "in", "soccer"]
 # load the whole embedding into memory
 embeddings_index = dict()
 f = open('C:\\Users\\GAZOV\\Desktop\\glove.6B\\glove.6B.100d.txt', encoding="utf8")
