@@ -106,8 +106,8 @@ if __name__ == '__main__':
     print(model.summary())
     plot_model(model, to_file='model.png', show_shapes=True)
     # fit network
-    # epochs, batch_size, verbose = 1, 32, 1
-    # model.fit(train_noraml, train_simple, epochs=epochs, batch_size=batch_size, verbose=verbose)
+    epochs, batch_size, verbose = 1, 32, 1
+    model.fit(train_noraml, train_simple, epochs=epochs, batch_size=batch_size, verbose=verbose)
     # # test on some training sequences
-    # print('train')
-    # evaluate_model(model, simple_tokenizer, train_noraml, normal_sents_orig, simple_sents_orig)
+    print('train')
+    evaluate_model(model, simple_tokenizer, train_noraml, normal_sents_orig, simple_sents_orig)
