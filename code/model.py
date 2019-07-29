@@ -48,9 +48,11 @@ def define_model(normal_sent_dataset_size, simple_sent_dataset_size, normal_max_
     model.add(Conv1D(filters=64, kernel_size=3, activation='relu', padding='valid'))
     model.add(Dropout(0.5))
     model.add(MaxPooling1D(pool_size=2))
-    model.add(LSTM(64))
+    model.add(Flatten())
+    # The number in this LSTM can be any number
+    #model.add(LSTM(222))
     model.add(RepeatVector(simple_max_len))
-    model.add(Bidirectional(LSTM(n_units, return_sequences=True)))
+    model.add(Bidirectional(LSTM(simple_max_len, return_sequences=True)))
     model.add(TimeDistributed(Dense(simple_sent_dataset_size, activation='softmax')))
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     return model
@@ -100,15 +102,7 @@ def evaluate_model(model, tokenizer, sources, normal_sents_orig, simple_sents_or
 
 if __name__ == '__main__':
 
-    #embedding_matrix, embeddings_matrix_index = build_embedding_matrix(GLOVE_PATH)
-
-    #unk_vec = create_vector_unknown_token()
-    #normal_sents_train_as_matrices = Vectorize_Sentences(normal_sents_train,max_len_normal,unk_vec)
-    #simple_sents_train_as_matrices = Vectorize_Sentences(simple_sents_train,max_len_simple,unk_vec)
-    #normal_sents_test_as_matrices = Vectorize_Sentences(normal_sents_test,max_len_normal,unk_vec)
-    #simple_sents_test_as_matrices = Vectorize_Sentences(simple_sents_test,max_len_simple,unk_vec)
-
-    # From here down is a trying of the tokenizer
+    # data preperation
     normal_sents_orig, simple_sents_orig = load_data(wiki_data_path, None)
     normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test = load_dataset(normal_sents_orig, simple_sents_orig, 10)
     normal_tokenizer = create_tokenizer(normal_sents_orig)
@@ -131,9 +125,9 @@ if __name__ == '__main__':
     # fit network
     model = define_model(len(normal_tokenizer.word_index) + 1, len(simple_tokenizer.word_index) + 1, normal_max_len,
                          simple_max_len, 64)
+    print(model.summary())
     epochs, batch_size, verbose = 1, 32, 1
     model.fit(train_noraml, train_simple, epochs=epochs, batch_size=batch_size, verbose=verbose)
-    print(model.summary())
     # # test on some training sequences
     #print('train')
-    #evaluate_model(model, simple_tokenizer, train_noraml, normal_sents_orig, simple_sents_orig)
+    evaluate_model(model, simple_tokenizer, train_noraml, normal_sents_orig, simple_sents_orig)
