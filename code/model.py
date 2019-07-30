@@ -64,18 +64,18 @@ def define_model(normal_sent_dataset_size, simple_sent_dataset_size, normal_max_
     model = Sequential()
     model.add(Embedding(normal_sent_dataset_size, n_units, input_length=normal_max_len))
     model.add(Conv1D(filters=64, kernel_size=3, activation='relu', padding='valid'))
-    model.add(Dropout(0.5))
+    model.add(Dropout(0.2))
     model.add(MaxPooling1D(pool_size=2))
     model.add(Flatten())
     # The number in this LSTM can be any number
-    #model.add(LSTM(222))
+    #model.add(LSTM(64))
     model.add(RepeatVector(simple_max_len))
-    model.add(Bidirectional(LSTM(simple_max_len, return_sequences=True)))
+    model.add(Bidirectional(LSTM(n_units, return_sequences=True)))
     model.add(TimeDistributed(Dense(simple_sent_dataset_size, activation='softmax')))
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     return model
 
-
+'''
 def define_model2(normal_sent_dataset_size, simple_sent_dataset_size, normal_max_len, simple_max_len, n_units):
     deep_inputs = Input(shape=(normal_max_len,))
     input_layer = Embedding(normal_sent_dataset_size, n_units, input_length=normal_max_len)(deep_inputs)
@@ -98,7 +98,7 @@ def define_model2(normal_sent_dataset_size, simple_sent_dataset_size, normal_max
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     #print(model.summary())
     return model
-
+'''
 
 # evaluate the skill of the model
 def evaluate_model(model, tokenizer, sources, normal_sents_orig, simple_sents_orig):
@@ -107,10 +107,10 @@ def evaluate_model(model, tokenizer, sources, normal_sents_orig, simple_sents_or
         # translate encoded source text
         source = source.reshape((1, source.shape[0]))
         translation = predict_sequence(model, tokenizer, source)
-        raw_target, raw_src = simple_sents_orig[i], normal_sents_orig[i]
+        raw_target, raw_src = normal_sents_orig[i], simple_sents_orig[i]
         if i < 10:
             print('src=[%s], target=[%s], predicted=[%s]' % (raw_src, raw_target, translation))
-        #actual.append([raw_target.split()])
+    #actual.append([raw_target.split()])
         #predicted.append(translation.split())
     # calculate BLEU score
     #print('BLEU-1: %f' % corpus_bleu(actual, predicted, weights=(1.0, 0, 0, 0)))
@@ -135,17 +135,14 @@ if __name__ == '__main__':
     test_noraml = encode_sequences(normal_tokenizer, normal_max_len, normal_sents_test)
     test_simple = encode_sequences(simple_tokenizer, simple_max_len, simple_sents_test)
     test_simple = encode_output(test_simple, len(simple_tokenizer.word_index) + 1)
-    #model2 = define_model2(len(normal_tokenizer.word_index) + 1, len(simple_tokenizer.word_index) + 1, normal_max_len, simple_max_len, 64)
-    # summarize defined model
-    #print(model2.summary())
-    #plot_model(model2, to_file='model.png', show_shapes=True)
-    #model2.fit(train_noraml, train_simple, epochs=1, batch_size=32, verbose=1)
     # fit network
-    model = define_model(len(normal_tokenizer.word_index) + 1, len(simple_tokenizer.word_index) + 1, normal_max_len,
-                         simple_max_len, 64)
+    print('Creating a model')
+    model = define_model(len(normal_tokenizer.word_index) + 1, len(simple_tokenizer.word_index) + 1, normal_max_len, simple_max_len, 64)
     print(model.summary())
-    epochs, batch_size, verbose = 1, 32, 1
+    #plot_model(model, to_file='model.png', show_shapes=True)
+    epochs, batch_size, verbose = 30, 32, 1
+    print('Fitting the model')
     model.fit(train_noraml, train_simple, epochs=epochs, batch_size=batch_size, verbose=verbose)
     # # test on some training sequences
-    #print('train')
+    print('Training the model')
     evaluate_model(model, simple_tokenizer, train_noraml, normal_sents_orig, simple_sents_orig)
