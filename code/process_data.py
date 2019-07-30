@@ -200,24 +200,7 @@ def encode_output(sequences, vocab_size):
     y = y.reshape(sequences.shape[0], sequences.shape[1], vocab_size)
     return y
 
-# map an integer to a word
-def word_for_id(integer, tokenizer):
-    for word, index in tokenizer.word_index.items():
-        if index == integer:
-            return word
-    return None
 
-# generate target given source sequence
-def predict_sequence(model, tokenizer, source):
-    prediction = model.predict(source, verbose=0)[0]
-    integers = [np.argmax(vector) for vector in prediction]
-    target = list()
-    for i in integers:
-        word = word_for_id(i, tokenizer)
-        if word is None:
-            break
-        target.append(word)
-    return ' '.join(target)
 
 if __name__=='__main__':
     '''
