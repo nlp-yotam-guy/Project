@@ -122,7 +122,7 @@ if __name__ == '__main__':
 
     # data preperation
     normal_sents_orig, simple_sents_orig = load_data(wiki_data_path, None)
-    normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test = load_dataset(normal_sents_orig, simple_sents_orig, 10)
+    normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test = load_dataset(normal_sents_orig, simple_sents_orig, 50)
     normal_tokenizer = create_tokenizer(normal_sents_orig)
     simple_tokenizer = create_tokenizer(simple_sents_orig)
     normal_max_len = max_input_sentece_length(normal_sents_orig)
