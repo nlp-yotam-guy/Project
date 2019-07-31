@@ -75,7 +75,7 @@ def define_model(normal_sent_dataset_size, simple_sent_dataset_size, normal_max_
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     return model
 
-'''
+
 def define_model2(normal_sent_dataset_size, simple_sent_dataset_size, normal_max_len, simple_max_len, n_units):
     deep_inputs = Input(shape=(normal_max_len,))
     input_layer = Embedding(normal_sent_dataset_size, n_units, input_length=normal_max_len)(deep_inputs)
@@ -91,14 +91,19 @@ def define_model2(normal_sent_dataset_size, simple_sent_dataset_size, normal_max
     maxpool2 = MaxPooling1D(pool_size=normal_max_len - 3)(dropout_2)
     maxpool3 = MaxPooling1D(pool_size=normal_max_len - 4)(dropout_3)
     maxpool4 = MaxPooling1D(pool_size=normal_max_len - 5)(dropout_4)
-    cc1 = concatenate([maxpool1,maxpool2,maxpool3,maxpool4], axis=2)
-    lstm = LSTM(236, return_sequences=True)(cc1)
+    flat1 = Flatten()(maxpool1)
+    flat2 = Flatten()(maxpool2)
+    flat3 = Flatten()(maxpool3)
+    flat4 = Flatten()(maxpool4)
+    cc1 = concatenate([flat1,flat2,flat3,flat4])
+    vec = RepeatVector(simple_max_len)(cc1)
+    lstm = LSTM(236, return_sequences=True)(vec)
     output = Dense(simple_sent_dataset_size, activation='softmax')(lstm)
     model = Model(inputs=[deep_inputs], outputs=output)
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     #print(model.summary())
     return model
-'''
+
 
 # evaluate the skill of the model
 def evaluate_model(model, tokenizer, sources, normal_sents_orig, simple_sents_orig):
@@ -108,7 +113,7 @@ def evaluate_model(model, tokenizer, sources, normal_sents_orig, simple_sents_or
         source = source.reshape((1, source.shape[0]))
         translation = predict_sequence(model, tokenizer, source)
         raw_target, raw_src = normal_sents_orig[i], simple_sents_orig[i]
-        if i < 10:
+        if i < 15:
             print('src=[%s], target=[%s], predicted=[%s]' % (raw_src, raw_target, translation))
     #actual.append([raw_target.split()])
         #predicted.append(translation.split())
@@ -122,7 +127,7 @@ if __name__ == '__main__':
 
     # data preperation
     normal_sents_orig, simple_sents_orig = load_data(wiki_data_path, None)
-    normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test = load_dataset(normal_sents_orig, simple_sents_orig, 10000)
+    normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test = load_dataset(normal_sents_orig, simple_sents_orig, 100000)
     normal_tokenizer = create_tokenizer(normal_sents_orig)
     simple_tokenizer = create_tokenizer(simple_sents_orig)
     normal_max_len = max_input_sentece_length(normal_sents_orig)
@@ -137,10 +142,10 @@ if __name__ == '__main__':
     test_simple = encode_output(test_simple, len(simple_tokenizer.word_index) + 1)
     # fit network
     print('Creating a model')
-    model = define_model(len(normal_tokenizer.word_index) + 1, len(simple_tokenizer.word_index) + 1, normal_max_len, simple_max_len, 64)
+    model = define_model2(len(normal_tokenizer.word_index) + 1, len(simple_tokenizer.word_index) + 1, normal_max_len, simple_max_len, 64)
     print(model.summary())
-    #plot_model(model, to_file='model.png', show_shapes=True)
-    epochs, batch_size, verbose = 30, 32, 1
+    plot_model(model, to_file='model.png', show_shapes=True)
+    epochs, batch_size, verbose = 30, 100, 1
     print('Fitting the model')
     model.fit(train_noraml, train_simple, epochs=epochs, batch_size=batch_size, verbose=verbose)
     # # test on some training sequences
