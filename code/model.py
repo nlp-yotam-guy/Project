@@ -8,6 +8,7 @@ from keras.layers import RepeatVector
 from keras.layers import TimeDistributed
 from keras.models import Sequential
 from keras.layers.embeddings import Embedding
+from keras.optimizers import Adam
 from keras.utils.vis_utils import plot_model
 from keras import Model, Input
 import numpy as np
@@ -79,18 +80,18 @@ def define_model(normal_sent_dataset_size, simple_sent_dataset_size, normal_max_
 def define_model2(normal_sent_dataset_size, simple_sent_dataset_size, normal_max_len, simple_max_len, n_units):
     deep_inputs = Input(shape=(normal_max_len,))
     input_layer = Embedding(normal_sent_dataset_size, n_units, input_length=normal_max_len)(deep_inputs)
-    conv1 = Conv1D(100, (3), activation='relu')(input_layer)
-    dropout_1 = Dropout(0.5)(conv1)
-    conv2 = Conv1D(100, (4), activation='relu')(input_layer)
-    dropout_2 = Dropout(0.5)(conv2)
-    conv3 = Conv1D(100, (5), activation='relu')(input_layer)
-    dropout_3 = Dropout(0.5)(conv3)
-    conv4 = Conv1D(100, (6), activation='relu')(input_layer)
-    dropout_4 = Dropout(0.5)(conv4)
-    maxpool1 = MaxPooling1D(pool_size=normal_max_len - 2)(dropout_1)
-    maxpool2 = MaxPooling1D(pool_size=normal_max_len - 3)(dropout_2)
-    maxpool3 = MaxPooling1D(pool_size=normal_max_len - 4)(dropout_3)
-    maxpool4 = MaxPooling1D(pool_size=normal_max_len - 5)(dropout_4)
+    conv1 = Conv1D(100, (13), activation='relu')(input_layer)
+    dropout_1 = Dropout(0.7)(conv1)
+    conv2 = Conv1D(100, (14), activation='relu')(input_layer)
+    dropout_2 = Dropout(0.7)(conv2)
+    conv3 = Conv1D(100, (15), activation='relu')(input_layer)
+    dropout_3 = Dropout(0.7)(conv3)
+    conv4 = Conv1D(100, (16), activation='relu')(input_layer)
+    dropout_4 = Dropout(0.7)(conv4)
+    maxpool1 = MaxPooling1D(pool_size=normal_max_len - 12)(dropout_1)
+    maxpool2 = MaxPooling1D(pool_size=normal_max_len - 13)(dropout_2)
+    maxpool3 = MaxPooling1D(pool_size=normal_max_len - 14)(dropout_3)
+    maxpool4 = MaxPooling1D(pool_size=normal_max_len - 15)(dropout_4)
     flat1 = Flatten()(maxpool1)
     flat2 = Flatten()(maxpool2)
     flat3 = Flatten()(maxpool3)
@@ -100,7 +101,8 @@ def define_model2(normal_sent_dataset_size, simple_sent_dataset_size, normal_max
     lstm = LSTM(236, return_sequences=True)(vec)
     output = Dense(simple_sent_dataset_size, activation='softmax')(lstm)
     model = Model(inputs=[deep_inputs], outputs=output)
-    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+    learning_rate = 1e-3
+    model.compile(loss='categorical_crossentropy', optimizer=Adam(learning_rate), metrics=['accuracy'])
     #print(model.summary())
     return model
 
@@ -127,7 +129,7 @@ if __name__ == '__main__':
 
     # data preperation
     normal_sents_orig, simple_sents_orig = load_data(wiki_data_path, None)
-    normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test = load_dataset(normal_sents_orig, simple_sents_orig, 100000)
+    normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test = load_dataset(normal_sents_orig, simple_sents_orig, 10000)
     normal_tokenizer = create_tokenizer(normal_sents_orig)
     simple_tokenizer = create_tokenizer(simple_sents_orig)
     normal_max_len = max_input_sentece_length(normal_sents_orig)
@@ -144,10 +146,10 @@ if __name__ == '__main__':
     print('Creating a model')
     model = define_model2(len(normal_tokenizer.word_index) + 1, len(simple_tokenizer.word_index) + 1, normal_max_len, simple_max_len, 64)
     print(model.summary())
-    plot_model(model, to_file='model.png', show_shapes=True)
-    epochs, batch_size, verbose = 30, 100, 1
+    #plot_model(model, to_file='model.png', show_shapes=True)
+    epochs, batch_size, verbose = 30, 32, 1
     print('Fitting the model')
-    model.fit(train_noraml, train_simple, epochs=epochs, batch_size=batch_size, verbose=verbose)
+    model.fit(train_noraml, train_simple, validation_split=0.33, epochs=epochs, batch_size=batch_size, verbose=verbose)
     # # test on some training sequences
     print('Training the model')
     evaluate_model(model, simple_tokenizer, train_noraml, normal_sents_orig, simple_sents_orig)
