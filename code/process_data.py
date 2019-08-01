@@ -30,7 +30,7 @@ def load_data(wiki_path,newsela_path):
 
     normal_sents = f_wiki_normal.readlines()
     simple_sents = f_wiki_simple.readlines()
-    indices = [i for i, x in enumerate(simple_sents) if len(x) <= 50]
+    indices = [i for i, x in enumerate(simple_sents) if len(x) <= 70]
     normal_sents = [normal_sents[i] for i in indices]
     simple_sents = [simple_sents[i] for i in indices]
     assert(len(normal_sents) == len(simple_sents))
