@@ -1,5 +1,5 @@
-from project_code.process_data import *
-from project_code.model import Rephraser
+from process_data import *
+from model import Rephraser
 
 VALIDATION_SPLIT = 0.33
 EMBEDDING_DIM = 100

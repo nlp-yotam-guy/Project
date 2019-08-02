@@ -1,5 +1,5 @@
 
-from process_data import *
+from project_code.process_data import *
 from keras.layers.core import Dropout, Dense
 from keras.layers import Conv1D
 from keras.layers.pooling import MaxPooling1D
