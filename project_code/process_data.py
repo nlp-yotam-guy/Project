@@ -4,12 +4,12 @@ from keras.preprocessing.sequence import pad_sequences
 from keras.utils import to_categorical
 
 
-WIKI_SIMPLE = '/normal.aligned'
-WIKI_NORMAL = '/simple.aligned'
-GLOVE_PATH = 'C:\\Users\\guyazov\\PycharmProjects\\SentenceSimplificationProject\\data\\Glove\\glove.6B.100d.txt'
-BATCH_SIZE = 32
-EMBEDDING_DIM = 100
-def load_data(wiki_path,newsela_path):
+# WIKI_SIMPLE = '/normal.aligned'
+# WIKI_NORMAL = '/simple.aligned'
+# GLOVE_PATH = 'C:\\Users\\guyazov\\PycharmProjects\\SentenceSimplificationProject\\data\\Glove\\glove.6B.100d.txt'
+# BATCH_SIZE = 32
+# EMBEDDING_DIM = 100
+def load_data(wiki_normal, wiki_simple, newsela_path):
     '''
     load raw text from data files for normal and simple sentences
 
@@ -25,8 +25,8 @@ def load_data(wiki_path,newsela_path):
 		'poor work',
 		'Could have done better.']
     '''
-    f_wiki_simple = open(wiki_path + WIKI_SIMPLE,'r',encoding="utf8")
-    f_wiki_normal = open(wiki_path + WIKI_NORMAL,'r',encoding="utf8")
+    f_wiki_simple = open(wiki_simple,'r',encoding="utf8")
+    f_wiki_normal = open(wiki_normal,'r',encoding="utf8")
 
     normal_sents = f_wiki_normal.readlines()
     simple_sents = f_wiki_simple.readlines()
@@ -202,7 +202,15 @@ def encode_output(sequences, vocab_size):
     y = y.reshape(sequences.shape[0], sequences.shape[1], vocab_size)
     return y
 
+def load_dataset(normal_sents, simple_sents,dataset_size):
 
+    # load training set and test set
+    #Cut the datasets randomly
+    rand_idx = np.random.choice(len(normal_sents),size=dataset_size)
+    normal_sents = np.array(normal_sents)[rand_idx]
+    simple_sents = np.array(simple_sents)[rand_idx]
+    normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test = split_data(normal_sents, simple_sents)
+    return normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test
 
 if __name__=='__main__':
     '''
