@@ -40,7 +40,7 @@ def main():
     # prepare training data
     train_normal = encode_sequences(tokenizer, normal_max_len, normal_sents_train)
     train_simple = encode_sequences(tokenizer, simple_max_len, simple_sents_train)
-    train_simple = encode_output(train_simple, len(tokenizer.word_index) + 1)
+    train_simple = encode_output(train_simple, embedding_matrix.shape[0])
     # prepare validation data
     test_normal = encode_sequences(tokenizer, normal_max_len, normal_sents_test)
     test_simple = encode_sequences(tokenizer, simple_max_len, simple_sents_test)
