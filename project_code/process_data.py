@@ -9,7 +9,7 @@ from keras.utils import to_categorical
 # GLOVE_PATH = 'C:\\Users\\guyazov\\PycharmProjects\\SentenceSimplificationProject\\data\\Glove\\glove.6B.100d.txt'
 # BATCH_SIZE = 32
 # EMBEDDING_DIM = 100
-def load_data(wiki_normal, wiki_simple, newsela_path):
+def load_data(wiki_normal, wiki_simple, newsela_path, limit_sent):
     '''
     load raw text from data files for normal and simple sentences
 
@@ -30,7 +30,7 @@ def load_data(wiki_normal, wiki_simple, newsela_path):
 
     normal_sents = f_wiki_normal.readlines()
     simple_sents = f_wiki_simple.readlines()
-    indices = [i for i, x in enumerate(simple_sents) if len(x) <= 70]
+    indices = [i for i, x in enumerate(simple_sents) if len(x) <= limit_sent]
     normal_sents = [normal_sents[i].lower() for i in indices]
     simple_sents = [simple_sents[i].lower() for i in indices]
     assert(len(normal_sents) == len(simple_sents))
