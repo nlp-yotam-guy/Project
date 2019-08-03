@@ -15,7 +15,7 @@ MAX_LEN_OF_SENTENCE = 192
 FILTER_SIZES = (2, 3, 4)
 BATCH_SIZE = 32
 NUM_EPOCHES = 10
-LIMIT_DATA_SIZE = 1000
+LIMIT_DATA_SIZE = 10000
 WIKI_SIMPLE = '../data/wiki/normal.aligned'
 WIKI_NORMAL = '../data/wiki/simple.aligned'
 GLOVE_PATH = 'C:\\Users\\guyazov\\PycharmProjects\\SentenceSimplificationProject\\data\\Glove\\glove.6B.100d.txt'
@@ -47,7 +47,7 @@ def main():
     test_simple = encode_output(test_simple, len(tokenizer.word_index)+1)
     # fit network
     print('Creating a model')
-    model = Rephraser(EMBEDDING_DIM, embedding_matrix, normal_max_len, DROP_PROB, HIDDEN_SIZE,
+    model = Rephraser(embedding_matrix.shape[1], embedding_matrix, normal_max_len, DROP_PROB, HIDDEN_SIZE,
                       BATCH_SIZE, NUM_EPOCHES, simple_max_len,
                       len(tokenizer.word_index) + 1)
 

@@ -107,7 +107,7 @@ def build_embedding_matrix(glove_path, tokenizer):
     # create a weight matrix for words in training docs
     word_index = tokenizer.word_index
     num_words = len(word_index) + 1
-    embedding_matrix = np.zeros((len(embeddings_index), len(embeddings_index[word])))
+    embedding_matrix = np.zeros((num_words, len(embeddings_index[word])))
     unk_list = []
     for word, i in word_index.items():
         embedding_vector = embeddings_index.get(word)
