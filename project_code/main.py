@@ -40,16 +40,16 @@ def main():
     # prepare training data
     train_normal = encode_sequences(tokenizer, normal_max_len, normal_sents_train)
     train_simple = encode_sequences(tokenizer, simple_max_len, simple_sents_train)
-    train_simple = encode_output(train_simple, embedding_matrix.shape[0])
+    train_simple = encode_output(train_simple, len(tokenizer.word_index)+1)
     # prepare validation data
     test_normal = encode_sequences(tokenizer, normal_max_len, normal_sents_test)
     test_simple = encode_sequences(tokenizer, simple_max_len, simple_sents_test)
-    test_simple = encode_output(test_simple, embedding_matrix.shape[0])
+    test_simple = encode_output(test_simple, len(tokenizer.word_index)+1)
     # fit network
     print('Creating a model')
     model = Rephraser(EMBEDDING_DIM, embedding_matrix, normal_max_len, DROP_PROB, HIDDEN_SIZE,
                       BATCH_SIZE, NUM_EPOCHES, simple_max_len,
-                      embedding_matrix.shape[0])
+                      len(tokenizer.word_index) + 1)
 
     #plot_model(model, to_file='model.png', show_shapes=True)
     print('Fitting the model')
