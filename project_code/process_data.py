@@ -205,7 +205,7 @@ def encode_output(sequences, vocab_size):
         encoded = to_categorical(sequence, num_classes=vocab_size)
         ylist.append(encoded)
     y = np.array(ylist)
-    y = y.reshape(sequences.shape[0], sequences.shape[1], vocab_size)
+    y = y.reshape((sequences.shape[0], sequences.shape[1], vocab_size))
     return y
 
 def load_dataset(normal_sents, simple_sents,dataset_size):
