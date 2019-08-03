@@ -24,7 +24,7 @@ GLOVE_PATH = 'C:\\Users\\guyazov\\PycharmProjects\\SentenceSimplificationProject
 
 
 def main():
-    assert(len(sys.argv) == 2, 'No GloVe path provided')
+    assert(len(sys.argv) == 2), 'No GloVe path provided'
 
     # data preperation
     normal_sents_orig, simple_sents_orig = load_data(WIKI_NORMAL,WIKI_SIMPLE, None)
