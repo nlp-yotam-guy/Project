@@ -19,11 +19,12 @@ MAX_EVAL_PRINT = 15
 
 class Rephraser:
 
-    def __init__(self,embed_dim, max_input_len, drop_prob,
+    def __init__(self,embed_dim, embedding_matrix, max_input_len, drop_prob,
                  hidden_size, batch_size, n_epoches, max_output_len,
                  in_vocab_size, out_vocab_size):
 
         self.embed_dim = embed_dim
+        self.embedding_matrix = embedding_matrix
         self.max_input_len = max_input_len
         self.drop_prob = drop_prob
         self.hidden_size = hidden_size
@@ -39,7 +40,12 @@ class Rephraser:
 
     def define(self):
         self.model = Sequential()
-        self.model.add(Embedding(self.in_vocab_size, self.hidden_size, input_length=self.max_input_len))
+        self.model.add(Embedding(self.in_vocab_size,
+                                 self.embed_dim,
+                                 weights=[self.embedding_matrix],
+                                 trainable=False,
+                                 input_length=self.max_input_len))
+
         self.model.add(Conv1D(filters=64, kernel_size=3, activation='relu', padding='valid'))
         self.model.add(Dropout(self.drop_prob))
         self.model.add(MaxPooling1D(pool_size=2))

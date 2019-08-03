@@ -89,7 +89,7 @@ def split_data(normal_sents,simple_sents):
 
     return normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test
 
-def build_embedding_matrix(glove_path):
+def build_embedding_matrix(glove_path, tokenizer):
     '''
     build embedding matrix of size (Vocab_size, embedding_dim) (GloVe)
     returns the embedding matrix and a word-to-index dictionary
@@ -105,17 +105,23 @@ def build_embedding_matrix(glove_path):
     f.close()
     print('Loaded %s word vectors.' % len(embeddings_index))
     # create a weight matrix for words in training docs
-    embedding_matrix = np.zeros((len(embeddings_index), 100))
-    i=0
-    embeddings_matrix_index = dict()
-    for word in embeddings_index:
+    word_index = tokenizer.word_index
+    num_words = len(word_index) + 1
+    embedding_matrix = np.zeros((len(embeddings_index), len(embeddings_index[word])))
+    unk_list = []
+    for word, i in word_index.items():
         embedding_vector = embeddings_index.get(word)
         if embedding_vector is not None:
+            # words not found in embedding index will be all-zeros.
             embedding_matrix[i] = embedding_vector
-            embeddings_matrix_index[word] = i
-        i +=1
+        else:
+            unk_list.append(i)
+    # give unk words an average embedding
+    avg_embedding = np.average(embedding_matrix,axis=0)
+    for i in unk_list:
+        embedding_matrix[i] = avg_embedding
 
-    return embedding_matrix, embeddings_matrix_index
+    return embedding_matrix
 
 
 def max_input_sentece_length(normal_sents):
