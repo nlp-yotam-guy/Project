@@ -49,7 +49,7 @@ def main():
     print('Creating a model')
     model = Rephraser(EMBEDDING_DIM, embedding_matrix, normal_max_len, DROP_PROB, HIDDEN_SIZE,
                       BATCH_SIZE, NUM_EPOCHES, simple_max_len,
-                      len(tokenizer.word_index) + 1, len(tokenizer.word_index) + 1)
+                      embedding_matrix.shape[0])
 
     #plot_model(model, to_file='model.png', show_shapes=True)
     print('Fitting the model')

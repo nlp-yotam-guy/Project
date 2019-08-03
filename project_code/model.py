@@ -21,7 +21,7 @@ class Rephraser:
 
     def __init__(self,embed_dim, embedding_matrix, max_input_len, drop_prob,
                  hidden_size, batch_size, n_epoches, max_output_len,
-                 in_vocab_size, out_vocab_size):
+                 vocab_size):
 
         self.embed_dim = embed_dim
         self.embedding_matrix = embedding_matrix
@@ -31,8 +31,7 @@ class Rephraser:
         self.batch_size = batch_size
         self.n_epoches = n_epoches
         self.max_output_len = max_output_len
-        self.in_vocab_size = in_vocab_size
-        self.out_vocab_size = out_vocab_size
+        self.vocab_size = vocab_size
 
         self.model = None
         self.define()
@@ -40,7 +39,7 @@ class Rephraser:
 
     def define(self):
         self.model = Sequential()
-        self.model.add(Embedding(self.in_vocab_size,
+        self.model.add(Embedding(self.vocab_size,
                                  self.embed_dim,
                                  weights=[self.embedding_matrix],
                                  trainable=False,
@@ -54,7 +53,7 @@ class Rephraser:
         # model.add(LSTM(64))
         self.model.add(RepeatVector(self.max_output_len))
         self.model.add(Bidirectional(LSTM(self.hidden_size, return_sequences=True)))
-        self.model.add(TimeDistributed(Dense(self.out_vocab_size, activation='softmax')))
+        self.model.add(TimeDistributed(Dense(self.vocab_size, activation='softmax')))
         self.model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
 
