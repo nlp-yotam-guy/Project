@@ -46,8 +46,9 @@ class Rephraser:
                                  input_length=self.max_input_len))
 
         self.model.add(Conv1D(filters=64, kernel_size=3, activation='relu', padding='valid'))
+        self.model.add(Conv1D(filters=32, kernel_size=4, activation='relu', padding='valid'))
         self.model.add(Dropout(self.drop_prob))
-        self.model.add(MaxPooling1D(pool_size=2))
+        # self.model.add(MaxPooling1D(pool_size=2))
         self.model.add(Flatten())
         # The number in this LSTM can be any number
         # model.add(LSTM(64))
