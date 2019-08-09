@@ -102,3 +102,5 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+./data/newsela/newsela_articles_20150302.aligned.sents.txt
