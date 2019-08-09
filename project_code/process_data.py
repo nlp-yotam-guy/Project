@@ -9,43 +9,94 @@ from keras.utils import to_categorical
 # GLOVE_PATH = 'C:\\Users\\guyazov\\PycharmProjects\\SentenceSimplificationProject\\data\\Glove\\glove.6B.100d.txt'
 # BATCH_SIZE = 32
 # EMBEDDING_DIM = 100
-def load_data(wiki_normal, wiki_simple, newsela_path, limit_sent):
-    '''
-    load raw text from data files for normal and simple sentences
 
-    example:
-    sentences = ['Well done!',
-		'Good work',
-		'Great effort',
-		'nice work',
-		'Excellent!',
-		'Weak',
-		'Poor effort!',
-		'not good',
-		'poor work',
-		'Could have done better.']
-    '''
+WIKI_SIMPLE = '/normal.aligned'
+WIKI_NORMAL = '/simple.aligned'
+NEWSELA = '/newsela_articles_20150302.aligned.sents.txt'
+
+def load_wiki(wiki_normal, wiki_simple, limit_sent_len=-1, limit_data=-1):
     f_wiki_simple = open(wiki_simple,'r',encoding="utf8")
     f_wiki_normal = open(wiki_normal,'r',encoding="utf8")
 
-    normal_sents = f_wiki_normal.readlines()
-    simple_sents = f_wiki_simple.readlines()
-    indices = [i for i, x in enumerate(simple_sents) if len(x) <= limit_sent]
-    normal_sents = [normal_sents[i].lower() for i in indices]
-    simple_sents = [simple_sents[i].lower() for i in indices]
-    assert(len(normal_sents) == len(simple_sents))
-    n = len(normal_sents)
+    normal_sents_orig = f_wiki_normal.readlines()
+    simple_sents_orig = f_wiki_simple.readlines()
 
-    for i in range(n):
-        normal_line = normal_sents[i].split('\t')
-        normal_sents[i] = normal_line[2].split(' ')
-        del normal_sents[i][-1]
-        normal_sents[i].append('.')
+    normal_sents = []
+    simple_sents = []
 
-        simple_line = simple_sents[i].split('\t')
-        simple_sents[i] = simple_line[2].split(' ')
-        del simple_sents[i][-1]
-        simple_sents[i].append('.')
+    if limit_data == -1:
+        limit_data = len(normal_sents_orig)
+
+    i = 0
+    for normal_line,simple_line in zip(normal_sents_orig,simple_sents_orig):
+        if i > limit_data:
+            break
+        normal_sent = normal_line.split('\t')[-1].lower()
+        simple_sent = simple_line.split('\t')[-1].lower()
+
+        if normal_sent == simple_sents:
+            continue
+
+        normal_sent = normal_sent.split(' ')
+        if len(normal_sent) > limit_sent_len:
+            continue
+
+        simple_sent = simple_sent.split(' ')
+
+        del normal_sent[-1]
+        normal_sent.append('.')
+        del simple_sent[-1]
+        simple_sent.append('.')
+
+        normal_sents.append(normal_sent)
+        simple_sents.append(simple_sent)
+        i += 1
+
+    return normal_sents,simple_sents
+
+def load_newsela(newsela, limit_sent_len=-1, limit_data=-1):
+    normal_sents = []
+    simple_sents = []
+    i = 0
+
+    if limit_data == -1:
+        limit_data = float('inf')
+    if limit_sent_len == -1:
+        limit_sent_len = float('inf')
+
+
+    f = open(newsela,'r')
+    for line in f:
+        if i > limit_data:
+            break
+        splited_line = line.split('\t')
+        if splited_line[-2] == splited_line[-1]:
+            continue
+        normal_sent = splited_line[-2].lower().split(' ')
+        if len(normal_sent) > limit_sent_len:
+            continue
+        if normal_sent[-1] != '.':
+            normal_sent.append('.')
+
+        simple_sent = splited_line[-1].lower().split(' ')
+        simple_sent[-1] = simple_sent[-1].replace('\n','')
+        normal_sents.append(normal_sent)
+        simple_sents.append(simple_sent)
+        i += 1
+
+    return normal_sents, simple_sents
+
+def load_data(base_path, dataset, limit_sent=-1, limit_data=-1):
+
+    normal_sents = simple_sents = None
+    if dataset == 'wiki':
+        wiki_normal = base_path + dataset + WIKI_NORMAL
+        wiki_simple = base_path + dataset + WIKI_SIMPLE
+        normal_sents, simple_sents = load_wiki(wiki_normal, wiki_simple, limit_sent, limit_data)
+
+    elif dataset == 'newsela':
+        newsela = base_path + dataset + NEWSELA
+        normal_sents, simple_sents = load_newsela(newsela, limit_sent, limit_data)
 
     return normal_sents,simple_sents
 

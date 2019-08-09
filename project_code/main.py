@@ -8,18 +8,17 @@ from process_data import *
 from model import Rephraser
 
 VALIDATION_SPLIT = 0.33
-EMBEDDING_DIM = 100
-HIDDEN_SIZE = EMBEDDING_DIM
+# EMBEDDING_DIM = 100
+# HIDDEN_SIZE = EMBEDDING_DIM
 DROP_PROB = 0.2
-MAX_LEN_OF_SENTENCE = 70
+MAX_LEN_OF_SENTENCE = 50
 FILTER_SIZES = (2, 3, 4)
 BATCH_SIZE = 32
 NUM_EPOCHES = 10
 LIMIT_DATA_SIZE = 10000
-WIKI_SIMPLE = '../data/wiki/normal.aligned'
-WIKI_NORMAL = '../data/wiki/simple.aligned'
-GLOVE_PATH = 'C:\\Users\\guyazov\\PycharmProjects\\SentenceSimplificationProject\\data\\Glove\\glove.6B.100d.txt'
-# wiki_data_path = 'C:\\Users\\guyazov\\PycharmProjects\\SentenceSimplificationProject\\data\\wiki'
+DATASET_PATH = '../data/'
+ACTIVE_DATASET = 'newsela'
+
 
 
 
@@ -27,7 +26,7 @@ def main():
     assert(len(sys.argv) == 2), 'No GloVe path provided'
 
     # data preperation
-    normal_sents_orig, simple_sents_orig = load_data(WIKI_NORMAL,WIKI_SIMPLE, None, MAX_LEN_OF_SENTENCE)
+    normal_sents_orig, simple_sents_orig = load_data(DATASET_PATH, ACTIVE_DATASET, MAX_LEN_OF_SENTENCE)
     normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test = load_dataset(normal_sents_orig, simple_sents_orig, len(normal_sents_orig))
 
     tokenizer = create_tokenizer(normal_sents_orig + simple_sents_orig)
