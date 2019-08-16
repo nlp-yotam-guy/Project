@@ -19,7 +19,7 @@ MAX_EVAL_PRINT = 15
 
 class Rephraser:
 
-    def __init__(self,embed_dim, embedding_matrix, max_input_len, drop_prob,
+    def __init__(self,embed_dim=None, embedding_matrix=None, max_input_len, drop_prob,
                  hidden_size, batch_size, n_epoches, max_output_len,
                  vocab_size):
 
@@ -34,7 +34,8 @@ class Rephraser:
         self.vocab_size = vocab_size
 
         self.model = None
-        self.define()
+        #self.define()
+        self.define_nmt()
         print(self.model.summary())
 
     def define(self):
@@ -57,19 +58,19 @@ class Rephraser:
         self.model.add(TimeDistributed(Dense(self.vocab_size, activation='softmax')))
         self.model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-    def define_nmt(hidden_size, batch_size, normal_max_len, normal_voc_size, simple_max_len, simple_voc_size):
+    def define_nmt(self):
         # Define an input sequence and process it.
-        if batch_size:
-            encoder_inputs = Input(batch_shape=(batch_size, normal_max_len, normal_voc_size), name='encoder_inputs')
-            decoder_inputs = Input(batch_shape=(batch_size, simple_max_len - 1, simple_voc_size), name='decoder_inputs')
+        if self.batch_size:
+            encoder_inputs = Input(batch_shape=(self.batch_size, self.normal_max_len, self.normal_voc_size), name='encoder_inputs')
+            decoder_inputs = Input(batch_shape=(self.batch_size, self.simple_max_len - 1, self.simple_voc_size), name='decoder_inputs')
         else:
-            encoder_inputs = Input(shape=(normal_max_len, normal_voc_size), name='encoder_inputs')
-            decoder_inputs = Input(shape=(simple_max_len - 1, simple_voc_size), name='decoder_inputs')
+            encoder_inputs = Input(shape=(self.normal_max_len, self.normal_voc_size), name='encoder_inputs')
+            decoder_inputs = Input(shape=(self.simple_max_len - 1, self.simple_voc_size), name='decoder_inputs')
         # Convolutional Encoder
         encoder_conv = Conv1D(filters=64, kernel_size=3, activation='relu', padding='valid')
         encoder_out, encoder_state = encoder_conv(encoder_inputs)
         # Set up the decoder GRU, using `encoder_states` as initial state.
-        decoder_lstm = LSTM(hidden_size, return_sequences=True, return_state=True)
+        decoder_lstm = LSTM(self.hidden_size, return_sequences=True, return_state=True)
         decoder_out, decoder_state = decoder_lstm(decoder_inputs, initial_state=encoder_state)
         # Attention layer
         attn_layer = AttentionLayer(name='attention_layer')
@@ -77,14 +78,14 @@ class Rephraser:
         # Concat attention input and decoder LSTM output
         decoder_concat_input = concatenate(axis=-1, name='concat_layer')([decoder_out, attn_out])
         # Dense layer
-        dense = Dense(simple_voc_size, activation='softmax', name='softmax_layer')
+        dense = Dense(self.vocab_size, activation='softmax', name='softmax_layer')
         dense_time = TimeDistributed(dense, name='time_distributed_layer')
         decoder_pred = dense_time(decoder_concat_input)
         # Full model
         full_model = Model(inputs=[encoder_inputs, decoder_inputs], outputs=decoder_pred)
         full_model.compile(optimizer='adam', loss='categorical_crossentropy')
         full_model.summary()
-        return full_model
+        self.model = full_model
 
     def train(self,generator,validation_split):
         self.model.fit_generator(generator, epochs=self.n_epoches, verbose=PRINT_PROGRESS)
