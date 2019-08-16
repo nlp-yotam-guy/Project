@@ -51,7 +51,7 @@ def main():
                                       MAX_LEN_OF_SENTENCE, simple_max_len)
     # fit network
     print('Creating a model')
-    model = Rephraser(MAX_LEN_OF_SENTENCE, DROP_PROB, HIDDEN_SIZE,
+    model = Rephraser(EMBEDDING_DIM,MAX_LEN_OF_SENTENCE, DROP_PROB, HIDDEN_SIZE,
                       BATCH_SIZE, NUM_EPOCHES, simple_max_len,
                       len(tokenizer.word_index) + 1)
     #plot_model(model, to_file='model.png', show_shapes=True)

@@ -19,13 +19,15 @@ MAX_EVAL_PRINT = 15
 
 class Rephraser:
 
-    def __init__(self,embed_dim=None, embedding_matrix=None, max_input_len, drop_prob,
+    def __init__(self,embed_dim, max_input_len, drop_prob,
                  hidden_size, batch_size, n_epoches, max_output_len,
-                 vocab_size):
+                 vocab_size,embedding_matrix=None):
 
         self.embed_dim = embed_dim
         self.embedding_matrix = embedding_matrix
         self.max_input_len = max_input_len
+        self.normal_max_len = max_input_len
+        self.simple_max_len = max_output_len
         self.drop_prob = drop_prob
         self.hidden_size = hidden_size
         self.batch_size = batch_size
@@ -61,17 +63,29 @@ class Rephraser:
     def define_nmt(self):
         # Define an input sequence and process it.
         if self.batch_size:
-            encoder_inputs = Input(batch_shape=(self.batch_size, self.normal_max_len, self.normal_voc_size), name='encoder_inputs')
-            decoder_inputs = Input(batch_shape=(self.batch_size, self.simple_max_len - 1, self.simple_voc_size), name='decoder_inputs')
+            encoder_inputs = Input(batch_shape=(self.batch_size, self.normal_max_len, self.vocab_size), name='encoder_inputs')
+            decoder_inputs = Input(batch_shape=(self.batch_size, self.simple_max_len - 1, self.vocab_size), name='decoder_inputs')
         else:
-            encoder_inputs = Input(shape=(self.normal_max_len, self.normal_voc_size), name='encoder_inputs')
-            decoder_inputs = Input(shape=(self.simple_max_len - 1, self.simple_voc_size), name='decoder_inputs')
+            encoder_inputs = Input(shape=(self.normal_max_len, self.vocab_size), name='encoder_inputs')
+            decoder_inputs = Input(shape=(self.simple_max_len - 1, self.vocab_size), name='decoder_inputs')
+        # Embedding layer
+        encoder_embeddings = Embedding(self.vocab_size,
+                                 self.embed_dim,
+                                 #weights=[self.embedding_matrix],
+                                 trainable=False,
+                                 input_length=self.normal_max_len)
+
+        decoder_embeddings = Embedding(self.vocab_size,
+                                 self.embed_dim,
+                                 #weights=[self.embedding_matrix],
+                                 trainable=False,
+                                 input_length=self.simple_max_len)
         # Convolutional Encoder
         encoder_conv = Conv1D(filters=64, kernel_size=3, activation='relu', padding='valid')
-        encoder_out, encoder_state = encoder_conv(encoder_inputs)
+        encoder_out, encoder_state = encoder_conv(encoder_embeddings)
         # Set up the decoder GRU, using `encoder_states` as initial state.
         decoder_lstm = LSTM(self.hidden_size, return_sequences=True, return_state=True)
-        decoder_out, decoder_state = decoder_lstm(decoder_inputs, initial_state=encoder_state)
+        decoder_out, decoder_state = decoder_lstm(decoder_embeddings, initial_state=encoder_state)
         # Attention layer
         attn_layer = AttentionLayer(name='attention_layer')
         attn_out, attn_states = attn_layer([encoder_out, decoder_out])
