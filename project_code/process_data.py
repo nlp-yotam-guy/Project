@@ -1,7 +1,7 @@
 import numpy as np
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
-from keras.utils import to_categorical
+from keras.utils import to_categorical,Sequence
 
 
 # WIKI_SIMPLE = '/normal.aligned'
@@ -13,6 +13,30 @@ from keras.utils import to_categorical
 WIKI_SIMPLE = '/normal.aligned'
 WIKI_NORMAL = '/simple.aligned'
 NEWSELA = '/newsela_articles_20150302.aligned.sents.txt'
+
+class Batch_Generator(Sequence):
+    def __init__(self, normal, simple, tokenizer, embedding_matrix, batch_size, max_len_normal, max_len_simple):
+        self.normal = normal
+        self.simple = simple
+        self.tokenizer = tokenizer
+        self.embedding_matrix = embedding_matrix
+        self.batch_size = batch_size
+        self.max_len_normal = max_len_normal
+        self.max_len_simple = max_len_simple
+
+    def __len__(self):
+        return int(np.ceil(len(self.normal) / float(self.batch_size)))
+
+    def __getitem__(self, idx):
+        batch_x = self.normal[idx*self.batch_size : (idx+1)*self.batch_size]
+        batch_y = self.simple[idx*self.batch_size : (idx+1)*self.batch_size]
+
+        train_normal = encode_sequences(self.tokenizer, self.max_len_normal, batch_x)
+        train_simple = encode_sequences(self.tokenizer, self.max_len_simple, batch_y)
+        train_simple = encode_output(train_simple, len(self.tokenizer.word_index) + 1)
+
+        return np.array(train_normal), np.array(train_simple)
+
 
 def load_wiki(wiki_normal, wiki_simple, limit_sent_len=-1, limit_data=-1):
     f_wiki_simple = open(wiki_simple,'r',encoding="utf8")
