@@ -1,5 +1,5 @@
-
 from process_data import *
+from attention import *
 from keras.layers.core import Dropout, Dense
 from keras.layers import Conv1D
 from keras.layers.pooling import MaxPooling1D
@@ -57,6 +57,34 @@ class Rephraser:
         self.model.add(TimeDistributed(Dense(self.vocab_size, activation='softmax')))
         self.model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
+    def define_nmt(hidden_size, batch_size, normal_max_len, normal_voc_size, simple_max_len, simple_voc_size):
+        # Define an input sequence and process it.
+        if batch_size:
+            encoder_inputs = Input(batch_shape=(batch_size, normal_max_len, normal_voc_size), name='encoder_inputs')
+            decoder_inputs = Input(batch_shape=(batch_size, simple_max_len - 1, simple_voc_size), name='decoder_inputs')
+        else:
+            encoder_inputs = Input(shape=(normal_max_len, normal_voc_size), name='encoder_inputs')
+            decoder_inputs = Input(shape=(simple_max_len - 1, simple_voc_size), name='decoder_inputs')
+        # Convolutional Encoder
+        encoder_conv = Conv1D(filters=64, kernel_size=3, activation='relu', padding='valid')
+        encoder_out, encoder_state = encoder_conv(encoder_inputs)
+        # Set up the decoder GRU, using `encoder_states` as initial state.
+        decoder_lstm = LSTM(hidden_size, return_sequences=True, return_state=True)
+        decoder_out, decoder_state = decoder_lstm(decoder_inputs, initial_state=encoder_state)
+        # Attention layer
+        attn_layer = AttentionLayer(name='attention_layer')
+        attn_out, attn_states = attn_layer([encoder_out, decoder_out])
+        # Concat attention input and decoder LSTM output
+        decoder_concat_input = concatenate(axis=-1, name='concat_layer')([decoder_out, attn_out])
+        # Dense layer
+        dense = Dense(simple_voc_size, activation='softmax', name='softmax_layer')
+        dense_time = TimeDistributed(dense, name='time_distributed_layer')
+        decoder_pred = dense_time(decoder_concat_input)
+        # Full model
+        full_model = Model(inputs=[encoder_inputs, decoder_inputs], outputs=decoder_pred)
+        full_model.compile(optimizer='adam', loss='categorical_crossentropy')
+        full_model.summary()
+        return full_model
 
     def train(self,X,Y,validation_split):
         self.model.fit(X, Y, validation_split=validation_split, epochs=self.n_epoches, batch_size=self.batch_size,
