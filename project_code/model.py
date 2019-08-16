@@ -86,9 +86,8 @@ class Rephraser:
         full_model.summary()
         return full_model
 
-    def train(self,X,Y,validation_split):
-        self.model.fit(X, Y, validation_split=validation_split, epochs=self.n_epoches, batch_size=self.batch_size,
-                  verbose=PRINT_PROGRESS)
+    def train(self,generator,validation_split):
+        self.model.fit_generator(generator, epochs=self.n_epoches, verbose=PRINT_PROGRESS)
 
 
     # simplify a given sentence
