@@ -23,7 +23,7 @@ ACTIVE_DATASET = 'wiki'
 
 
 def main():
-    #assert(len(sys.argv) == 2), 'No GloVe path provided'
+    assert(len(sys.argv) == 2), 'No GloVe path provided'
 
     # data preperation
     normal_sents_orig, simple_sents_orig = load_data(DATASET_PATH, ACTIVE_DATASET, MAX_LEN_OF_SENTENCE)
@@ -48,11 +48,11 @@ def main():
     # test_simple = encode_output(test_simple, len(tokenizer.word_index)+1)
 
     train_generator = Batch_Generator(normal_sents_train, simple_sents_train, tokenizer, embedding_matrix, BATCH_SIZE,
-                                      MAX_LEN_OF_SENTENCE, simple_max_len)
+                                      MAX_LEN_OF_SENTENCE, MAX_LEN_OF_SENTENCE)
     # fit network
     print('Creating a model')
     model = Rephraser(EMBEDDING_DIM,MAX_LEN_OF_SENTENCE, DROP_PROB, hidden_size,
-                      BATCH_SIZE, NUM_EPOCHES, simple_max_len,
+                      BATCH_SIZE, NUM_EPOCHES, MAX_LEN_OF_SENTENCE,
                       voc_size, embedding_matrix)
     #plot_model(model, to_file='model.png', show_shapes=True)
     print('Fitting the model')

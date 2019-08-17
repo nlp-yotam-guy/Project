@@ -37,30 +37,29 @@ class Rephraser:
         self.vocab_size = vocab_size
 
         self.model = None
-        #self.define()
-        self.define_nmt()
+        self.define()
+        # self.define_nmt()
         #self.define_model2()
         print(self.model.summary())
 
     def define(self):
-        self.model = Sequential()
-        self.model.add(Embedding(self.vocab_size,
-                                 self.embed_dim,
-                                 weights=[self.embedding_matrix],
-                                 trainable=True,
-                                 input_length=self.max_input_len))
+        # https://github.com/pradeepsinngh/Neural-Machine-Translation/blob/master/machine_translation.ipynb
+        learning_rate = 1e-3
 
-        self.model.add(Conv1D(filters=64, kernel_size=3, activation='relu', padding='valid'))
-        self.model.add(Conv1D(filters=32, kernel_size=4, activation='relu', padding='valid'))
-        self.model.add(Dropout(self.drop_prob))
-        # self.model.add(MaxPooling1D(pool_size=2))
-        self.model.add(Flatten())
-        # The number in this LSTM can be any number
-        # model.add(LSTM(64))
-        self.model.add(RepeatVector(self.max_output_len))
-        self.model.add(Bidirectional(LSTM(self.hidden_size, return_sequences=True)))
-        self.model.add(TimeDistributed(Dense(self.vocab_size, activation='softmax')))
-        self.model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+        input_seq = Input((self.max_input_len,))
+        emb = Embedding(self.vocab_size,
+                        self.embed_dim,
+                        weights=[self.embedding_matrix],
+                        trainable=False)(input_seq)
+        bdrnn = Bidirectional(LSTM(self.hidden_size, return_sequences=True))(emb)
+        dense = Dense(self.vocab_size, activation='softmax')
+        logits = TimeDistributed(dense)(bdrnn)
+
+        self.model = Model(inputs=input_seq, outputs=logits)
+        self.model.compile(loss='categorical_crossentropy',
+                      optimizer=Adam(learning_rate),
+                      metrics=['accuracy'])
+
 
     def define_nmt(self):
         # Define an input sequence and process it.
@@ -130,6 +129,8 @@ class Rephraser:
         learning_rate = 1e-3
         model.compile(loss='categorical_crossentropy', optimizer=Adam(learning_rate), metrics=['accuracy'])
         self.model = model
+
+
     def train(self,generator,validation_split):
         self.model.fit_generator(generator, epochs=self.n_epoches, verbose=PRINT_PROGRESS)
 
