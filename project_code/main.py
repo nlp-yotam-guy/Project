@@ -26,7 +26,7 @@ def main():
     #assert(len(sys.argv) == 2), 'No GloVe path provided'
 
     # data preperation
-    normal_sents_orig, simple_sents_orig = load_data(DATASET_PATH, ACTIVE_DATASET, MAX_LEN_OF_SENTENCE)
+    normal_sents_orig, simple_sents_orig = load_data(DATASET_PATH, ACTIVE_DATASET, MAX_LEN_OF_SENTENCE,limit_data=LIMIT_DATA_SIZE)
     normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test = load_dataset(normal_sents_orig, simple_sents_orig, len(normal_sents_orig))
 
     tokenizer = create_tokenizer(normal_sents_orig + simple_sents_orig)

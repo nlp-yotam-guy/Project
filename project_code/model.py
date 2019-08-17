@@ -37,7 +37,8 @@ class Rephraser:
 
         self.model = None
         #self.define()
-        self.define_nmt()
+        self.define_dementia()
+        # self.define_nmt()
         print(self.model.summary())
 
     def define(self):
@@ -59,6 +60,41 @@ class Rephraser:
         self.model.add(Bidirectional(LSTM(self.hidden_size, return_sequences=True)))
         self.model.add(TimeDistributed(Dense(self.vocab_size, activation='softmax')))
         self.model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+    def define_dementia(self):
+        deep_inputs = Input(shape=(self.max_input_len,))
+        input_layer = Embedding(self.vocab_size,
+                                self.embed_dim,
+                                weights=[self.embedding_matrix],
+                                trainable=False,
+                                input_length=self.max_input_len)(deep_inputs)
+
+        conv1 = Conv1D(100, (3), activation='relu')(input_layer)
+        dropout_1 = Dropout(0.7)(conv1)
+        conv2 = Conv1D(100, (4), activation='relu')(input_layer)
+        dropout_2 = Dropout(0.7)(conv2)
+        conv3 = Conv1D(100, (5), activation='relu')(input_layer)
+        dropout_3 = Dropout(0.7)(conv3)
+        conv4 = Conv1D(100, (6), activation='relu')(input_layer)
+        dropout_4 = Dropout(0.7)(conv4)
+        maxpool1 = MaxPooling1D(pool_size=self.max_input_len - 2)(dropout_1)
+        maxpool2 = MaxPooling1D(pool_size=self.max_input_len - 3)(dropout_2)
+        maxpool3 = MaxPooling1D(pool_size=self.max_input_len - 4)(dropout_3)
+        maxpool4 = MaxPooling1D(pool_size=self.max_input_len - 5)(dropout_4)
+        flat1 = Flatten()(maxpool1)
+        flat2 = Flatten()(maxpool2)
+        flat3 = Flatten()(maxpool3)
+        flat4 = Flatten()(maxpool4)
+        cc1 = concatenate([flat1, flat2, flat3, flat4])
+        vec = RepeatVector(self.max_output_len)(cc1)
+        lstm = LSTM(236, return_sequences=True)(vec)
+        output = Dense(self.vocab_size, activation='softmax')(lstm)
+        model = Model(inputs=[deep_inputs], outputs=output)
+        learning_rate = 1e-3
+        model.compile(loss='categorical_crossentropy', optimizer=Adam(learning_rate), metrics=['accuracy'])
+        # print(model.summary())
+        self.model = model
+
 
     def define_nmt(self):
         # Define an input sequence and process it.
@@ -153,34 +189,7 @@ def idx2word(integer, tokenizer):
     return None
 
 
-def define_model2(normal_sent_dataset_size, simple_sent_dataset_size, normal_max_len, simple_max_len, n_units):
-    deep_inputs = Input(shape=(normal_max_len,))
-    input_layer = Embedding(normal_sent_dataset_size, n_units, input_length=normal_max_len)(deep_inputs)
-    conv1 = Conv1D(100, (3), activation='relu')(input_layer)
-    dropout_1 = Dropout(0.7)(conv1)
-    conv2 = Conv1D(100, (4), activation='relu')(input_layer)
-    dropout_2 = Dropout(0.7)(conv2)
-    conv3 = Conv1D(100, (5), activation='relu')(input_layer)
-    dropout_3 = Dropout(0.7)(conv3)
-    conv4 = Conv1D(100, (6), activation='relu')(input_layer)
-    dropout_4 = Dropout(0.7)(conv4)
-    maxpool1 = MaxPooling1D(pool_size=normal_max_len - 2)(dropout_1)
-    maxpool2 = MaxPooling1D(pool_size=normal_max_len - 3)(dropout_2)
-    maxpool3 = MaxPooling1D(pool_size=normal_max_len - 4)(dropout_3)
-    maxpool4 = MaxPooling1D(pool_size=normal_max_len - 5)(dropout_4)
-    flat1 = Flatten()(maxpool1)
-    flat2 = Flatten()(maxpool2)
-    flat3 = Flatten()(maxpool3)
-    flat4 = Flatten()(maxpool4)
-    cc1 = concatenate([flat1,flat2,flat3,flat4])
-    vec = RepeatVector(simple_max_len)(cc1)
-    lstm = LSTM(236, return_sequences=True)(vec)
-    output = Dense(simple_sent_dataset_size, activation='softmax')(lstm)
-    model = Model(inputs=[deep_inputs], outputs=output)
-    learning_rate = 1e-3
-    model.compile(loss='categorical_crossentropy', optimizer=Adam(learning_rate), metrics=['accuracy'])
-    #print(model.summary())
-    return model
+
 
 
 
