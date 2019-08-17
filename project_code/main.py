@@ -31,7 +31,7 @@ def main():
 
     tokenizer = create_tokenizer(normal_sents_orig + simple_sents_orig)
     voc_size = len(tokenizer.word_index) + 1
-    glove_path = "C:\\Users\\guyazov\\Desktop\\glove.6B\glove.6B.100d.txt"
+    glove_path = sys.argv[1]
     embedding_matrix = build_embedding_matrix(glove_path, tokenizer)
     hidden_size = embedding_matrix.shape[1]
 
