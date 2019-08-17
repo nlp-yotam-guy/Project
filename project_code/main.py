@@ -31,7 +31,7 @@ def main():
 
     tokenizer = create_tokenizer(normal_sents_orig + simple_sents_orig)
     voc_size = len(tokenizer.word_index) + 1
-    glove_path = sys.argv[1]
+    glove_path = "C:\\Users\\guyazov\\Desktop\\glove.6B\glove.6B.100d.txt"
     embedding_matrix = build_embedding_matrix(glove_path, tokenizer)
     hidden_size = embedding_matrix.shape[1]
 
@@ -51,9 +51,9 @@ def main():
                                       MAX_LEN_OF_SENTENCE, simple_max_len)
     # fit network
     print('Creating a model')
-    model = Rephraser(EMBEDDING_DIM,MAX_LEN_OF_SENTENCE, DROP_PROB, HIDDEN_SIZE,
+    model = Rephraser(EMBEDDING_DIM,MAX_LEN_OF_SENTENCE, DROP_PROB, hidden_size,
                       BATCH_SIZE, NUM_EPOCHES, simple_max_len,
-                      len(tokenizer.word_index) + 1, embedding_matrix)
+                      voc_size, embedding_matrix)
     #plot_model(model, to_file='model.png', show_shapes=True)
     print('Fitting the model')
     model.train(train_generator, VALIDATION_SPLIT)

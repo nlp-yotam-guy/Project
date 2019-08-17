@@ -1,7 +1,8 @@
 from process_data import *
 from attention import *
+from keras.layers import *
 from keras.layers.core import Dropout, Dense
-from keras.layers import Conv1D,Conv2D
+from keras.layers import Conv1D, Activation
 from keras.layers.pooling import MaxPooling1D
 from keras.layers import LSTM, Bidirectional, concatenate, Flatten
 from keras.layers import RepeatVector
@@ -38,6 +39,7 @@ class Rephraser:
         self.model = None
         #self.define()
         self.define_nmt()
+        #self.define_model2()
         print(self.model.summary())
 
     def define(self):
@@ -62,34 +64,32 @@ class Rephraser:
 
     def define_nmt(self):
         # Define an input sequence and process it.
-        # if self.batch_size:
-        #     encoder_inputs = Input(batch_shape=(self.batch_size, self.normal_max_len, self.vocab_size), name='encoder_inputs')
-        #     decoder_inputs = Input(batch_shape=(self.batch_size, self.simple_max_len, self.vocab_size), name='decoder_inputs')
-        # else:
-        encoder_inputs = Input(shape=(self.normal_max_len, self.vocab_size), name='encoder_inputs')
-        decoder_inputs = Input(shape=(self.simple_max_len, self.vocab_size), name='decoder_inputs')
+        encoder_inputs = Input(shape=(self.normal_max_len,))
+        decoder_inputs = Input(shape=(self.simple_max_len,))
         # Embedding layer
         encoder_embeddings = Embedding(self.vocab_size,
-                                 self.embed_dim,
-                                 weights=[self.embedding_matrix],
-                                 trainable=True)(encoder_inputs)
+                                       self.hidden_size,
+                                       input_length=self.normal_max_len,
+                                       weights=[self.embedding_matrix],
+                                       trainable=True)(encoder_inputs)
 
         decoder_embeddings = Embedding(self.vocab_size,
-                                 self.embed_dim,
-                                 weights=[self.embedding_matrix],
-                                 trainable=True)(decoder_inputs)
+                                       self.hidden_size,
+                                       input_length=self.simple_max_len,
+                                       weights=[self.embedding_matrix],
+                                       trainable=True)(decoder_inputs)
         # Convolutional Encoder
-        encoder_conv = Conv2D(filters=64, kernel_size=3, activation='relu', padding='valid')
+        encoder_conv = Conv1D(filters=self.hidden_size, kernel_size=3, activation='relu', padding='valid')
         ### problem here
-        encoder_out, encoder_state = encoder_conv(encoder_embeddings)
+        encoder_out = encoder_conv(encoder_embeddings)
         # Set up the decoder GRU, using `encoder_states` as initial state.
-        decoder_lstm = LSTM(self.hidden_size, return_sequences=True, return_state=True)
-        decoder_out, decoder_state = decoder_lstm(decoder_embeddings, initial_state=encoder_state)
+        decoder_lstm = LSTM(self.hidden_size, return_sequences=True)
+        decoder_out = decoder_lstm(decoder_embeddings)
         # Attention layer
-        attn_layer = AttentionLayer(name='attention_layer')
-        attn_out, attn_states = attn_layer([encoder_out, decoder_out])
-        # Concat attention input and decoder LSTM output
-        decoder_concat_input = concatenate(axis=-1, name='concat_layer')([decoder_out, attn_out])
+        attention = dot([decoder_out, encoder_out], axes=[2, 2])
+        attention = Activation('softmax')(attention)
+        # Concat attention output and decoder output
+        decoder_concat_input = Concatenate(axis=-1, name='concat_layer')([decoder_out, attention])
         # Dense layer
         dense = Dense(self.vocab_size, activation='softmax', name='softmax_layer')
         dense_time = TimeDistributed(dense, name='time_distributed_layer')
@@ -97,9 +97,39 @@ class Rephraser:
         # Full model
         full_model = Model(inputs=[encoder_inputs, decoder_inputs], outputs=decoder_pred)
         full_model.compile(optimizer='adam', loss='categorical_crossentropy')
-        full_model.summary()
         self.model = full_model
 
+
+    def define_model2(self):
+        deep_inputs = Input(shape=(self.normal_max_len,))
+        input_layer = Embedding(self.vocab_size, self.hidden_size, input_length=self.normal_max_len)(deep_inputs)
+        conv1 = Conv1D(100, (3), activation='relu')(input_layer)
+        dropout_1 = Dropout(0.7)(conv1)
+        conv2 = Conv1D(100, (4), activation='relu')(input_layer)
+        dropout_2 = Dropout(0.7)(conv2)
+        conv3 = Conv1D(100, (5), activation='relu')(input_layer)
+        dropout_3 = Dropout(0.7)(conv3)
+        conv4 = Conv1D(100, (6), activation='relu')(input_layer)
+        dropout_4 = Dropout(0.7)(conv4)
+        maxpool1 = MaxPooling1D(pool_size=self.normal_max_len - 2)(dropout_1)
+        maxpool2 = MaxPooling1D(pool_size=self.normal_max_len - 3)(dropout_2)
+        maxpool3 = MaxPooling1D(pool_size=self.normal_max_len - 4)(dropout_3)
+        maxpool4 = MaxPooling1D(pool_size=self.normal_max_len - 5)(dropout_4)
+        flat1 = Flatten()(maxpool1)
+        flat2 = Flatten()(maxpool2)
+        flat3 = Flatten()(maxpool3)
+        flat4 = Flatten()(maxpool4)
+        cc1 = concatenate([flat1, flat2, flat3, flat4])
+        vec = RepeatVector(self.simple_max_len)(cc1)
+        lstm = Bidirectional(LSTM(self.hidden_size, return_sequences=True))(vec)
+        attention = dot([lstm, vec], axes=[2, 2])
+        attention = Activation('softmax')(attention)
+        context = dot([attention, vec], axes=[2, 1])
+        output = Dense(self.vocab_size, activation='softmax')(context)
+        model = Model(inputs=[deep_inputs], outputs=output)
+        learning_rate = 1e-3
+        model.compile(loss='categorical_crossentropy', optimizer=Adam(learning_rate), metrics=['accuracy'])
+        self.model = model
     def train(self,generator,validation_split):
         self.model.fit_generator(generator, epochs=self.n_epoches, verbose=PRINT_PROGRESS)
 
@@ -152,35 +182,6 @@ def idx2word(integer, tokenizer):
             return word
     return None
 
-
-def define_model2(normal_sent_dataset_size, simple_sent_dataset_size, normal_max_len, simple_max_len, n_units):
-    deep_inputs = Input(shape=(normal_max_len,))
-    input_layer = Embedding(normal_sent_dataset_size, n_units, input_length=normal_max_len)(deep_inputs)
-    conv1 = Conv1D(100, (3), activation='relu')(input_layer)
-    dropout_1 = Dropout(0.7)(conv1)
-    conv2 = Conv1D(100, (4), activation='relu')(input_layer)
-    dropout_2 = Dropout(0.7)(conv2)
-    conv3 = Conv1D(100, (5), activation='relu')(input_layer)
-    dropout_3 = Dropout(0.7)(conv3)
-    conv4 = Conv1D(100, (6), activation='relu')(input_layer)
-    dropout_4 = Dropout(0.7)(conv4)
-    maxpool1 = MaxPooling1D(pool_size=normal_max_len - 2)(dropout_1)
-    maxpool2 = MaxPooling1D(pool_size=normal_max_len - 3)(dropout_2)
-    maxpool3 = MaxPooling1D(pool_size=normal_max_len - 4)(dropout_3)
-    maxpool4 = MaxPooling1D(pool_size=normal_max_len - 5)(dropout_4)
-    flat1 = Flatten()(maxpool1)
-    flat2 = Flatten()(maxpool2)
-    flat3 = Flatten()(maxpool3)
-    flat4 = Flatten()(maxpool4)
-    cc1 = concatenate([flat1,flat2,flat3,flat4])
-    vec = RepeatVector(simple_max_len)(cc1)
-    lstm = LSTM(236, return_sequences=True)(vec)
-    output = Dense(simple_sent_dataset_size, activation='softmax')(lstm)
-    model = Model(inputs=[deep_inputs], outputs=output)
-    learning_rate = 1e-3
-    model.compile(loss='categorical_crossentropy', optimizer=Adam(learning_rate), metrics=['accuracy'])
-    #print(model.summary())
-    return model
 
 
 
