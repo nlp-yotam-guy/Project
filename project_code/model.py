@@ -12,6 +12,7 @@ from keras.layers.embeddings import Embedding
 from keras.optimizers import Adam
 from keras.utils.vis_utils import plot_model
 from keras import Model, Input
+import tensorflow as tf
 import numpy as np
 
 PRINT_PROGRESS = 1
@@ -52,12 +53,12 @@ class Rephraser:
         # https://github.com/pradeepsinngh/Neural-Machine-Translation/blob/master/machine_translation.ipynb
         learning_rate = 1e-3
 
-        input_seq = Input((self.max_input_len,))
+        input_seq = Input(batch_shape=(self.batch_size,self.max_input_len),dtype='int32')
         emb = Embedding(self.vocab_size,
                         self.embed_dim,
                         weights=[self.embedding_matrix],
                         trainable=False)(input_seq)
-        bdrnn = Bidirectional(LSTM(self.hidden_size, return_sequences=True))(emb)
+        bdrnn = LSTM(self.hidden_size, return_sequences=True)(emb)
         dense = Dense(self.vocab_size, activation='softmax')
         logits = TimeDistributed(dense)(bdrnn)
 
@@ -140,8 +141,8 @@ class Rephraser:
     def CNN_LSTM(self):
 
         # encoder
-        inputs_sentence = Input((self.max_input_len,))
-        input_positions = Input((self.max_input_len,))
+        inputs_sentence = Input(batch_shape=(self.batch_size,self.max_input_len,))
+        input_positions = Input(batch_shape=(self.batch_size,self.max_input_len,))
         embed_sentence = Embedding(self.vocab_size,
                                    self.hidden_size,
                                    input_length=self.normal_max_len,
@@ -155,15 +156,39 @@ class Rephraser:
 
         embedding = Dropout(self.drop_prob)(embed_sentence + embed_position)
 
-        conv = Conv1D(self.hidden_size,self.kernel_size,padding='same')(embedding)
+        conv_a = Conv1D(self.hidden_size,self.kernel_size,padding='same')(embedding)
         for i in range(1,self.n_conv_layers):
-            conv = conv + Conv1D(self.hidden_size,self.kernel_size,padding='same')(conv)
-            conv = Activation('tanh')(conv)
+            conv_a = conv_a + Conv1D(self.hidden_size,self.kernel_size,padding='same')(conv_a)
+            conv_a = Activation('tanh')(conv_a)
+
+        conv_c = Conv1D(self.hidden_size, self.kernel_size, padding='same')(embedding)
+        for i in range(1, self.n_conv_layers):
+            conv_c = conv_c + Conv1D(self.hidden_size, self.kernel_size, padding='same')(conv_c)
+            conv_c = Activation('tanh')(conv_c)
 
         ##### end of encoding #####
 
+        z = conv_a
+
         # decoder
-        lstm_out, state_h, state_c = LSTM(self.hidden_size, return_state=True, return_sequences=True)(conv)
+        states = None
+        for i in range(z.shape[1]):
+            lstm_single_timestep = z[:,i,:]
+            shape = (int(lstm_single_timestep.shape[0]),1,int(lstm_single_timestep.shape[1]))
+            lstm_single_timestep = tf.reshape(lstm_single_timestep, shape)
+            if states is None:
+                lstm_single_timestep, state_h, state_c = \
+                    LSTM(self.hidden_size, return_state=True, return_sequences=True)(lstm_single_timestep)
+            else:
+                lstm_single_timestep, state_h, state_c = \
+                    LSTM(self.hidden_size, return_state=True,
+                         return_sequences=True)(lstm_single_timestep,initial_state=states)
+            states = [state_h, state_c]
+            attention = Activation('softmax')(dot([state_h,lstm_single_timestep],-1))
+            c_i = dot([attention,z],-2)
+
+
+
         print('a')
 
 
