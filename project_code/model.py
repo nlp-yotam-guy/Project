@@ -22,7 +22,7 @@ class Rephraser:
 
     def __init__(self,embed_dim, max_input_len, drop_prob,
                  hidden_size, batch_size, n_epoches, max_output_len,
-                 vocab_size,embedding_matrix=None):
+                 vocab_size,n_conv_layers,kernel_size=3,embedding_matrix=None):
 
         self.embed_dim = embed_dim
         self.embedding_matrix = embedding_matrix
@@ -35,11 +35,17 @@ class Rephraser:
         self.n_epoches = n_epoches
         self.max_output_len = max_output_len
         self.vocab_size = vocab_size
+        self.n_conv_layers = n_conv_layers
+        self.kernel_size = kernel_size
+
+        if embedding_matrix is None:
+            self.embedding_matrix = np.zeros((self.vocab_size,self.embed_dim))
 
         self.model = None
-        self.define()
+        # self.define()
         # self.define_nmt()
         #self.define_model2()
+        self.CNN_LSTM()
         print(self.model.summary())
 
     def define(self):
@@ -129,6 +135,38 @@ class Rephraser:
         learning_rate = 1e-3
         model.compile(loss='categorical_crossentropy', optimizer=Adam(learning_rate), metrics=['accuracy'])
         self.model = model
+
+
+    def CNN_LSTM(self):
+
+        # encoder
+        inputs_sentence = Input((self.max_input_len,))
+        input_positions = Input((self.max_input_len,))
+        embed_sentence = Embedding(self.vocab_size,
+                                   self.hidden_size,
+                                   input_length=self.normal_max_len,
+                                   weights=[self.embedding_matrix],
+                                   trainable=False)(inputs_sentence)
+
+        embed_position = Embedding(self.vocab_size,
+                                   self.hidden_size,
+                                   input_length=self.normal_max_len,
+                                   trainable=True)(input_positions)
+
+        embedding = Dropout(self.drop_prob)(embed_sentence + embed_position)
+
+        conv = Conv1D(self.hidden_size,self.kernel_size,padding='same')(embedding)
+        for i in range(1,self.n_conv_layers):
+            conv = conv + Conv1D(self.hidden_size,self.kernel_size,padding='same')(conv)
+            conv = Activation('tanh')(conv)
+
+        ##### end of encoding #####
+
+        # decoder
+        lstm_out, state_h, state_c = LSTM(self.hidden_size, return_state=True, return_sequences=True)(conv)
+        print('a')
+
+
 
 
     def train(self,generator,validation_split):

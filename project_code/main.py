@@ -15,9 +15,13 @@ MAX_LEN_OF_SENTENCE = 50
 FILTER_SIZES = (2, 3, 4)
 BATCH_SIZE = 32
 NUM_EPOCHES = 10
+CONV_LAYERS = 5
 LIMIT_DATA_SIZE = 10000
 DATASET_PATH = '../data/'
 ACTIVE_DATASET = 'wiki'
+
+# set to false for quicker run time (good for debugging)
+LOAD_EMBEDDINGS = False
 
 
 
@@ -32,8 +36,11 @@ def main():
     tokenizer = create_tokenizer(normal_sents_orig + simple_sents_orig)
     voc_size = len(tokenizer.word_index) + 1
     glove_path = sys.argv[1]
-    embedding_matrix = build_embedding_matrix(glove_path, tokenizer)
-    hidden_size = embedding_matrix.shape[1]
+    embedding_matrix = None
+    hidden_size = EMBEDDING_DIM
+    if LOAD_EMBEDDINGS:
+        embedding_matrix = build_embedding_matrix(glove_path, tokenizer)
+        hidden_size = embedding_matrix.shape[1]
 
     simple_tokenizer = create_tokenizer(simple_sents_orig)
     normal_max_len = max_input_sentece_length(normal_sents_orig)
@@ -53,7 +60,7 @@ def main():
     print('Creating a model')
     model = Rephraser(EMBEDDING_DIM,MAX_LEN_OF_SENTENCE, DROP_PROB, hidden_size,
                       BATCH_SIZE, NUM_EPOCHES, MAX_LEN_OF_SENTENCE,
-                      voc_size, embedding_matrix)
+                      voc_size, CONV_LAYERS, embedding_matrix=embedding_matrix)
     #plot_model(model, to_file='model.png', show_shapes=True)
     print('Fitting the model')
     model.train(train_generator, VALIDATION_SPLIT)
