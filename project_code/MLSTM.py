@@ -2,8 +2,10 @@ from keras.layers import RNN, LSTM, LSTMCell, Bidirectional, concatenate, Flatte
 import numpy as numpy
 import tensorflow as tf
 from keras import backend as K
-from keras import regularizers
 import warnings
+from keras import regularizers
+from keras.utils.generic_utils import has_arg
+from keras.utils.generic_utils import to_list
 
 
 class MLSTMCell(LSTMCell):
@@ -26,23 +28,23 @@ class MLSTMCell(LSTMCell):
                  implementation=1,
                  **kwargs):
 
-        super().__init__(units,
-                 activation,
-                 recurrent_activation,
-                 use_bias,
-                 kernel_initializer,
-                 recurrent_initializer,
-                 bias_initializer,
-                 unit_forget_bias,
-                 kernel_regularizer,
-                 recurrent_regularizer,
-                 bias_regularizer,
-                 kernel_constraint,
-                 recurrent_constraint,
-                 bias_constraint,
-                 dropout,
-                 recurrent_dropout,
-                 implementation)
+        super().__init__(units=units,
+                 activation=activation,
+                 recurrent_activation=recurrent_activation,
+                 use_bias=use_bias,
+                 kernel_initializer=kernel_initializer,
+                 recurrent_initializer=recurrent_initializer,
+                 bias_initializer=bias_initializer,
+                 unit_forget_bias=unit_forget_bias,
+                 kernel_regularizer=kernel_regularizer,
+                 recurrent_regularizer=recurrent_regularizer,
+                 bias_regularizer=bias_regularizer,
+                 kernel_constraint=kernel_constraint,
+                 recurrent_constraint=recurrent_constraint,
+                 bias_constraint=bias_constraint,
+                 dropout=dropout,
+                 recurrent_dropout=recurrent_dropout,
+                 implementation=implementation)
 
     def call(self, z, z_tag, states, training=None):
         if 0 < self.dropout < 1 and self._dropout_mask is None:

@@ -90,7 +90,6 @@ def load_newsela(newsela, limit_sent_len=-1, limit_data=-1):
     if limit_sent_len == -1:
         limit_sent_len = float('inf')
 
-    newsela = '/home/yotam/personal/NLP/Project/data/newsela/newsela_articles_20150302.aligned.sents.txt'
     f = open(newsela, 'r')
     for line in f:
         if i > limit_data:

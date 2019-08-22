@@ -18,7 +18,7 @@ NUM_EPOCHES = 10
 CONV_LAYERS = 5
 LIMIT_DATA_SIZE = 3200
 DATASET_PATH = '../data/'
-ACTIVE_DATASET = 'newsela'
+ACTIVE_DATASET = 'wiki'
 
 # set to false for quicker run time (good for debugging)
 LOAD_EMBEDDINGS = False
