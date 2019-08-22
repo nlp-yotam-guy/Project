@@ -16,12 +16,14 @@ FILTER_SIZES = (2, 3, 4)
 BATCH_SIZE = 32
 NUM_EPOCHES = 10
 CONV_LAYERS = 5
-LIMIT_DATA_SIZE = 1000
+LIMIT_DATA_SIZE = 3200
 DATASET_PATH = '../data/'
-ACTIVE_DATASET = 'wiki'
+ACTIVE_DATASET = 'newsela'
 
 # set to false for quicker run time (good for debugging)
 LOAD_EMBEDDINGS = False
+
+EVAL_PRINT = 15
 
 
 

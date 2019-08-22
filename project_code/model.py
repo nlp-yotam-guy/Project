@@ -15,6 +15,8 @@ from keras import Model, Input
 import tensorflow as tf
 import numpy as np
 
+from MLSTM import MLSTM
+
 PRINT_PROGRESS = 1
 MAX_EVAL_PRINT = 15
 
@@ -169,23 +171,34 @@ class Rephraser:
         ##### end of encoding #####
 
         z = conv_a
+        z_tag = conv_c
 
         # decoder
-        states = None
-        for i in range(z.shape[1]):
-            lstm_single_timestep = z[:,i,:]
-            shape = (int(lstm_single_timestep.shape[0]),1,int(lstm_single_timestep.shape[1]))
-            lstm_single_timestep = tf.reshape(lstm_single_timestep, shape)
-            if states is None:
-                lstm_single_timestep, state_h, state_c = \
-                    LSTM(self.hidden_size, return_state=True, return_sequences=True)(lstm_single_timestep)
-            else:
-                lstm_single_timestep, state_h, state_c = \
-                    LSTM(self.hidden_size, return_state=True,
-                         return_sequences=True)(lstm_single_timestep,initial_state=states)
-            states = [state_h, state_c]
-            attention = Activation('softmax')(dot([state_h,lstm_single_timestep],-1))
-            c_i = dot([attention,z],-2)
+        lstm = MLSTM(self.hidden_size, return_state=True, return_sequences=True)
+        decoded = lstm.call(z,z_tag)
+        dense = Dense(self.vocab_size, activation='softmax')
+        logits = TimeDistributed(dense)(decoded)
+
+        self.model = Model(inputs=[inputs_sentence,input_positions], outputs=logits)
+        self.model.compile(loss='categorical_crossentropy',
+                      optimizer=Adam(learning_rate),
+                      metrics=['accuracy'])
+
+        # states = None
+        # for i in range(z.shape[1]):
+        #     lstm_single_timestep = z[:,i,:]
+        #     shape = (int(lstm_single_timestep.shape[0]),1,int(lstm_single_timestep.shape[1]))
+        #     lstm_single_timestep = tf.reshape(lstm_single_timestep, shape)
+        #     if states is None:
+        #         lstm_single_timestep, state_h, state_c = \
+        #             LSTM(self.hidden_size, return_state=True, return_sequences=True)(lstm_single_timestep)
+        #     else:
+        #         lstm_single_timestep, state_h, state_c = \
+        #             LSTM(self.hidden_size, return_state=True,
+        #                  return_sequences=True)(lstm_single_timestep,initial_state=states)
+        #     states = [state_h, state_c]
+        #     attention = Activation('softmax')(dot([state_h,lstm_single_timestep],-1))
+        #     c_i = dot([attention,z],-2)
 
 
 

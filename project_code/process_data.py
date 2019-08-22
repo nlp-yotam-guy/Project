@@ -33,7 +33,7 @@ class Batch_Generator(Sequence):
 
         train_normal = encode_sequences(self.tokenizer, self.max_len_normal, batch_x)
         train_simple = encode_sequences(self.tokenizer, self.max_len_simple, batch_y)
-        # train_simple = encode_output(train_simple, len(self.tokenizer.word_index) + 1)
+        train_simple = encode_output(train_simple, len(self.tokenizer.word_index) + 1)
 
         # return (train_normal, np.arange(len(train_normal))), train_simple
         return train_normal, train_simple
@@ -90,6 +90,7 @@ def load_newsela(newsela, limit_sent_len=-1, limit_data=-1):
     if limit_sent_len == -1:
         limit_sent_len = float('inf')
 
+    newsela = '/home/yotam/personal/NLP/Project/data/newsela/newsela_articles_20150302.aligned.sents.txt'
     f = open(newsela, 'r')
     for line in f:
         if i > limit_data:
