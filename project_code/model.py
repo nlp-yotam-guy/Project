@@ -45,22 +45,22 @@ class Rephraser:
             self.embedding_matrix = np.zeros((self.vocab_size,self.embed_dim))
 
         self.model = None
-        # self.define()
+        self.define()
         # self.define_nmt()
         #self.define_model2()
-        self.CNN_LSTM()
+        # self.CNN_LSTM()
         print(self.model.summary())
 
     def define(self):
         # https://github.com/pradeepsinngh/Neural-Machine-Translation/blob/master/machine_translation.ipynb
         learning_rate = 1e-3
 
-        input_seq = Input(batch_shape=(self.batch_size,self.max_input_len),dtype='int32')
+        input_seq = Input(shape=(self.max_input_len,),dtype='int32')
         emb = Embedding(self.vocab_size,
                         self.embed_dim,
                         weights=[self.embedding_matrix],
                         trainable=False)(input_seq)
-        bdrnn = LSTM(self.hidden_size, return_sequences=True)(emb)
+        bdrnn = Bidirectional(LSTM(self.hidden_size, return_sequences=True))(emb)
         dense = Dense(self.vocab_size, activation='softmax')
         logits = TimeDistributed(dense)(bdrnn)
 
