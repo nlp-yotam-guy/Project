@@ -57,11 +57,11 @@ def load_wiki(wiki_normal, wiki_simple, limit_sent_len=-1, limit_data=-1):
             continue
 
         normal_sent = normal_sent.split(' ')
+
         if len(normal_sent) > limit_sent_len:
             continue
 
         simple_sent = simple_sent.split(' ')
-
         del normal_sent[-1]
         normal_sent.append('.')
         del simple_sent[-1]
@@ -96,7 +96,6 @@ def load_newsela(newsela, limit_sent_len=-1, limit_data=-1):
             continue
         if normal_sent[-1] != '.':
             normal_sent.append('.')
-
         simple_sent = splited_line[-1].lower().split(' ')
         simple_sent[-1] = simple_sent[-1].replace('\n', '')
         normal_sents.append(normal_sent)
@@ -323,7 +322,7 @@ def sent_to_word_id(sentences, vocab, max_len, eos=True):
         else:
             end = []
 
-        if len(sent) < max_len:
+        if len(sent) <= max_len:
             data.append([vocab.word2id[w] for w in sent])
 
     return data

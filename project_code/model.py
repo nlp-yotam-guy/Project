@@ -50,7 +50,7 @@ class ConvEncoder(nn.Module):
 
 class AttnDecoder(nn.Module):
 
-    def __init__(self, output_vocab_size, max_sentece_len, use_cuda, dropout=0.2, hidden_size_gru=128,
+    def __init__(self, output_vocab_size, use_cuda, dropout=0.2, hidden_size_gru=128,
                  cnn_size=128, attn_size=128, n_layers_gru=1,
                  embedding_size=128):
 
@@ -98,20 +98,18 @@ class AttnDecoder(nn.Module):
 
 class Rephraser:
 
-    def __init__(self,embed_dim, max_input_len, drop_prob,
-                 hidden_size, batch_size, n_epoches, max_output_len,
-                 vocab_size,n_conv_layers,learning_rate,use_cuda,kernel_size=3,embedding_matrix=None):
+    def __init__(self,embed_dim, max_len, drop_prob,
+                 hidden_size, batch_size, n_epoches, vocab,
+                 vocab_size, n_conv_layers, learning_rate, use_cuda, kernel_size=3, embedding_matrix=None):
 
         self.embed_dim = embed_dim
         self.embedding_matrix = embedding_matrix
-        self.max_input_len = max_input_len
-        self.normal_max_len = max_input_len
-        self.simple_max_len = max_output_len
+        self.max_len = max_len
         self.drop_prob = drop_prob
         self.hidden_size = hidden_size
         self.batch_size = batch_size
         self.n_epoches = n_epoches
-        self.max_output_len = max_output_len
+        self.vocab = vocab
         self.vocab_size = vocab_size
         self.n_conv_layers = n_conv_layers
         self.kernel_size = kernel_size
@@ -125,9 +123,11 @@ class Rephraser:
         self.encoder_c = None
         self.decoder = None
         self.criterion = None
-        self.encoder_optimizer = None
+        self.encoder_a_optimizer = None
+        self.encoder_c_optimizer = None
         self.decoder_optimizer = None
 
+        self.define()
 
         # print(self.model.summary())
 
@@ -143,13 +143,13 @@ class Rephraser:
         m.weight.data.uniform_(-width, width)
 
     def define(self):
-        self.encoder_a = ConvEncoder(len(self.vocab_size), self.embed_dim, dropout=self.drop_prob,
+        self.encoder_a = ConvEncoder(self.vocab_size, self.embed_dim, self.max_len, dropout=self.drop_prob,
                                 num_channels_attn=self.hidden_size, num_channels_conv=self.hidden_size,
                                 num_layers=self.n_conv_layers)
-        self.encoder_c = ConvEncoder(len(self.vocab_size), self.embed_dim, dropout=self.drop_prob,
+        self.encoder_c = ConvEncoder(self.vocab_size, self.embed_dim, self.max_len, dropout=self.drop_prob,
                                 num_channels_attn=self.hidden_size, num_channels_conv=self.hidden_size,
                                 num_layers=self.n_conv_layers)
-        self.decoder = AttnDecoder(len(self.vocab_size), dropout=self.drop_prob,
+        self.decoder = AttnDecoder(self.vocab_size, self.max_len, dropout=self.drop_prob,
                               hidden_size_gru=self.hidden_size, embedding_size=self.embed_dim,
                               attn_size=self.hidden_size, cnn_size=self.hidden_size)
 
@@ -170,19 +170,35 @@ class Rephraser:
         self.encoder_c_optimizer = optim.Adam(self.encoder_c.parameters(), lr=self.lr)
         self.decoder_optimizer = optim.Adam(self.decoder.parameters(), lr=self.lr)
 
-        self.encoder_optimizer.zero_grad()
+        self.encoder_a_optimizer.zero_grad()
+        self.encoder_c_optimizer.zero_grad()
         self.decoder_optimizer.zero_grad()
 
         self.criterion = nn.NLLLoss()
 
+    def create_batch(self,training_pairs,idx):
+        batch = []
+        j=0
+        for i in idx:
+            batch.append(training_pairs[i])
+            j += 1
+            if j > self.batch_size:
+                break
+        return batch
+
     def trainIters(self, input_dataset, output_dataset, print_every=100):
 
-        encoder_a_optimizer = optim.Adam(self.encoder_a.parameters(), lr=self.lr)
-        encoder_c_optimizer = optim.Adam(self.encoder_c.parameters(), lr=self.lr)
-        decoder_optimizer = optim.Adam(self.decoder.parameters(), lr=self.lr)
-
         # Sample a training pair
-        training_pairs = list(zip(*(input_dataset, output_dataset)))
+        # training_pairs = list(zip(*(input_dataset, output_dataset)))
+
+        training_pairs = [(input_dataset[i],output_dataset[i]) for i in range(len(input_dataset))]
+        idx = list(range(len(training_pairs)))
+
+
+        # k = 10
+        # for i in range(k):
+        #     print([self.vocab.id2word[j] for j in training_pairs[i][0]])
+        #     print([self.vocab.id2word[j] for j in training_pairs[i][1]], '\n')
 
         print_loss_total = 0
 
@@ -191,11 +207,23 @@ class Rephraser:
         # the loss value as the training progresses
 
         for itr in range(1, self.n_epoches + 1):
-            training_pair = random.sample(training_pairs, k=self.batch_size)
+            random.shuffle(idx)
+            training_pair = self.create_batch(training_pairs,idx)
+
+            # k=10
+            # for i in range(k):
+            #     print([self.vocab.id2word[j] for j in training_pair[i][0]])
+            #     print([self.vocab.id2word[j] for j in training_pair[i][1]],'\n')
+
             input_variable, target_variable = list(zip(*training_pair))
 
-            loss = self.train(input_variable, target_variable, encoder_a_optimizer, encoder_c_optimizer,
-                              decoder_optimizer)
+            # k=10
+            # for i in range(k):
+            #     print([self.vocab.id2word[j] for j in input_variable[i]])
+            #     print([self.vocab.id2word[j] for j in target_variable[i]],'\n')
+
+            loss = self.train(input_variable, target_variable, self.encoder_a_optimizer, self.encoder_c_optimizer,
+                              self.decoder_optimizer)
 
             print_loss_total += loss
 
@@ -209,17 +237,20 @@ class Rephraser:
               encoder_a_optimizer, encoder_c_optimizer, decoder_optimizer,):
 
         # Initialize the gradients to zero
-        encoder_a_optimizer.zero_grad()
-        encoder_c_optimizer.zero_grad()
-        decoder_optimizer.zero_grad()
+        self.encoder_a_optimizer.zero_grad()
+        self.encoder_c_optimizer.zero_grad()
+        self.decoder_optimizer.zero_grad()
 
         for count in range(self.batch_size):
             # Length of input and output sentences
             input_variable = input_variables[count]
             output_variable = output_variables[count]
 
-            input_length = input_variable.size()[0]
-            output_length = output_variable.size()[0]
+            # input_length = input_variable.size()[0]
+            # output_length = output_variable.size()[0]
+
+            input_length = len(input_variable)
+            output_length = len(output_variable)
 
             loss = 0
 

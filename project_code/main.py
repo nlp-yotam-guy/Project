@@ -39,12 +39,15 @@ def main():
     # data preperation
     normal_sents_orig, simple_sents_orig = load_data(DATASET_PATH, ACTIVE_DATASET, MAX_LEN_OF_SENTENCE,limit_data=LIMIT_DATA_SIZE)
     normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test = load_dataset(normal_sents_orig, simple_sents_orig, len(normal_sents_orig))
+    simple_max_len = max_output_sentece_length(simple_sents_orig)
 
     vocabulary = namedtuple('Vocabulary', ['word2id', 'id2word'])
     vocab = construct_vocab(normal_sents_orig + simple_sents_orig, vocabulary)
 
-    normal_data = sent_to_word_id(normal_sents_train, vocab, MAX_LEN_OF_SENTENCE)
-    simple_data = sent_to_word_id(simple_sents_train, vocab, MAX_LEN_OF_SENTENCE)
+    normal_data = sent_to_word_id(normal_sents_train, vocab, simple_max_len)
+    simple_data = sent_to_word_id(simple_sents_train, vocab, simple_max_len)
+
+    assert(len(normal_data) == len(simple_data)), 'data length doesnt match'
 
     # tokenizer = create_tokenizer(normal_sents_orig + simple_sents_orig)
     voc_size = len(vocab.word2id) + 1
@@ -55,15 +58,14 @@ def main():
         embedding_matrix = build_embedding_matrix(glove_path, vocab)
         hidden_size = embedding_matrix.shape[1]
 
-    normal_max_len = max_input_sentece_length(normal_sents_orig)
-    simple_max_len = max_output_sentece_length(simple_sents_orig)
+
 
     # train_generator = Batch_Generator(normal_sents_train, simple_sents_train, tokenizer, embedding_matrix, BATCH_SIZE,
     #                                   MAX_LEN_OF_SENTENCE, MAX_LEN_OF_SENTENCE)
     # fit network
     print('Creating a model')
-    model = Rephraser(EMBEDDING_DIM,MAX_LEN_OF_SENTENCE, DROP_PROB, hidden_size,
-                      BATCH_SIZE, NUM_EPOCHES, MAX_LEN_OF_SENTENCE,
+    model = Rephraser(EMBEDDING_DIM,simple_max_len, DROP_PROB, hidden_size,
+                      BATCH_SIZE, NUM_EPOCHES, vocab,
                       voc_size, CONV_LAYERS, LEARNING_RATE, use_cuda, embedding_matrix=embedding_matrix)
     #plot_model(model, to_file='model.png', show_shapes=True)
     print('Fitting the model')
