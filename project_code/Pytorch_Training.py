@@ -160,6 +160,7 @@ def train(input_variables, output_variables, encoder_a, encoder_c, decoder,
             decoder_output, decoder_hidden = \
                 decoder(prev_word, decoder_hidden, cnn_a, cnn_c)
             topv, topi = decoder_output.data.topk(1)
+            # Maybe .item???
             ni = topi[0][0]
             prev_word = Variable(torch.LongTensor([[ni]]))
             prev_word = prev_word.cuda() if use_cuda else prev_word

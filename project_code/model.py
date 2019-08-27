@@ -13,12 +13,14 @@ MAX_EVAL_PRINT = 15
 
 
 class ConvEncoder(nn.Module):
-    def __init__(self, vocab_size, embedding_size, max_len, dropout=0.2,
+    def __init__(self, vocab_size, embedding_matrix, embedding_size, max_len, dropout=0.2,
                  num_channels_attn=512, num_channels_conv=512,
                  kernel_size=3, num_layers=5):
         super(ConvEncoder, self).__init__()
         self.position_embedding = nn.Embedding(max_len, embedding_size)
         self.word_embedding = nn.Embedding(vocab_size, embedding_size)
+        self.word_embedding.load_state_dict({'weight': embedding_matrix})
+        self.word_embedding.weight.requires_grad = False
         self.num_layers = num_layers
         self.dropout = dropout
 
@@ -143,10 +145,10 @@ class Rephraser:
         m.weight.data.uniform_(-width, width)
 
     def define(self):
-        self.encoder_a = ConvEncoder(self.vocab_size, self.embed_dim, self.max_len, dropout=self.drop_prob,
+        self.encoder_a = ConvEncoder(self.vocab_size, self.embedding_matrix, self.embed_dim, self.max_len, dropout=self.drop_prob,
                                 num_channels_attn=self.hidden_size, num_channels_conv=self.hidden_size,
                                 num_layers=self.n_conv_layers)
-        self.encoder_c = ConvEncoder(self.vocab_size, self.embed_dim, self.max_len, dropout=self.drop_prob,
+        self.encoder_c = ConvEncoder(self.vocab_size, self.embedding_matrix, self.embed_dim, self.max_len, dropout=self.drop_prob,
                                 num_channels_attn=self.hidden_size, num_channels_conv=self.hidden_size,
                                 num_layers=self.n_conv_layers)
         self.decoder = AttnDecoder(self.vocab_size, self.use_cuda, dropout=self.drop_prob,

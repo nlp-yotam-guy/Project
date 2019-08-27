@@ -1,7 +1,7 @@
 # choose GPU
 import os
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+#os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+#os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import sys
 from process_data import *
@@ -16,17 +16,17 @@ DROP_PROB = 0.2
 MAX_LEN_OF_SENTENCE = 50
 FILTER_SIZES = (2, 3, 4)
 BATCH_SIZE = 32
-NUM_EPOCHES = 10
+NUM_EPOCHES = 1000
 CONV_LAYERS = 5
-LIMIT_DATA_SIZE = 3200
+LIMIT_DATA_SIZE = -1
 LEARNING_RATE = 0.001
 DATASET_PATH = '../data/'
 ACTIVE_DATASET = 'newsela'
 
 # set to false for quicker run time (good for debugging)
-LOAD_EMBEDDINGS = False
+LOAD_EMBEDDINGS = True
 
-EVAL_PRINT = 15
+EVAL_PRINT = 20
 
 
 
