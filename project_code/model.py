@@ -52,7 +52,7 @@ class ConvEncoder(nn.Module):
 
 class AttnDecoder(nn.Module):
 
-    def __init__(self, output_vocab_size, use_cuda, dropout=0.2, hidden_size_gru=128,
+    def __init__(self, output_vocab_size, word_freq, use_cuda, dropout=0.2, hidden_size_gru=128,
                  cnn_size=128, attn_size=128, n_layers_gru=1,
                  embedding_size=128):
 
@@ -62,6 +62,8 @@ class AttnDecoder(nn.Module):
         self.hidden_size_gru = hidden_size_gru
         self.output_vocab_size = output_vocab_size
         self.dropout = dropout
+        self.word_freq = word_freq
+        self.word_count = dict()
 
         self.embedding = nn.Embedding(output_vocab_size, hidden_size_gru)
         self.gru = nn.GRU(hidden_size_gru + embedding_size, hidden_size_gru,
@@ -87,18 +89,18 @@ class AttnDecoder(nn.Module):
         gru_hidden = F.dropout(gru_hidden, self.dropout, self.training)
         softmax_output = F.log_softmax(self.dense_o(gru_hidden[-1]))
 
-        if pos < len(input_sentence) and input_sentence[pos].item() not in vocab_simple.id2word:
-            _, j_star = a_i[0].max(0)
-            x_j_star = input_sentence[j_star].item()
-            if x_j_star > len(vocab_simple.id2word) + 1:
-                return softmax_output, gru_hidden
-            else:
-                softmax_output_copy = torch.zeros(len(vocab_simple.id2word) + 1)
-                softmax_output_copy[x_j_star] = 1
-                softmax_output_copy = F.log_softmax(softmax_output_copy)
-                softmax_output_copy = softmax_output_copy.view(1, len(softmax_output_copy))
-                softmax_output_copy = softmax_output_copy.cuda() if self.use_cuda else softmax_output_copy
-                return softmax_output_copy, gru_hidden
+        # if pos < len(input_sentence) and input_sentence[pos].item() not in vocab_simple.id2word:
+        #     _, j_star = a_i[0].max(0)
+        #     x_j_star = input_sentence[j_star].item()
+        #     if x_j_star > len(vocab_simple.id2word):
+        #         return softmax_output, gru_hidden
+        #     else:
+        #         softmax_output.fill_(0)
+        #         softmax_output[0][x_j_star] = 1
+                # softmax_output_copy = F.log_softmax(softmax_output_copy)
+                # softmax_output_copy = softmax_output_copy.view(1, len(softmax_output_copy))
+                # softmax_output_copy = softmax_output_copy.cuda() if self.use_cuda else softmax_output_copy
+                # return softmax_output_copy, gru_hidden
         return softmax_output, gru_hidden
 
 
@@ -115,8 +117,8 @@ class Rephraser:
 
     def __init__(self,embed_dim, max_len, drop_prob,
                  hidden_size, batch_size, n_epoches, vocab_normal, vocab_simple,
-                 vocab_size_normal, vocab_size_simple
-                 , n_conv_layers, learning_rate, use_cuda, kernel_size=3, embedding_matrix=None):
+                 vocab_size_normal, vocab_size_simple, word_freq, n_conv_layers,
+                 learning_rate, use_cuda, kernel_size=3, embedding_matrix=None):
 
         self.embed_dim = embed_dim
         self.embedding_matrix = embedding_matrix
@@ -129,6 +131,7 @@ class Rephraser:
         self.vocab_simple = vocab_simple
         self.vocab_size_normal = vocab_size_normal
         self.vocab_size_simple = vocab_size_simple
+        self.word_freq = word_freq
         self.n_conv_layers = n_conv_layers
         self.kernel_size = kernel_size
         self.use_cuda = use_cuda
@@ -167,7 +170,7 @@ class Rephraser:
         self.encoder_c = ConvEncoder(self.vocab_size_normal, self.embedding_matrix, self.embed_dim, self.max_len, dropout=self.drop_prob,
                                 num_channels_attn=self.hidden_size, num_channels_conv=self.hidden_size,
                                 num_layers=self.n_conv_layers)
-        self.decoder = AttnDecoder(self.vocab_size_simple, self.use_cuda, dropout=self.drop_prob,
+        self.decoder = AttnDecoder(self.vocab_size_simple, self.word_freq, self.use_cuda, dropout=self.drop_prob,
                               hidden_size_gru=self.hidden_size, embedding_size=self.embed_dim,
                               attn_size=self.hidden_size, cnn_size=self.hidden_size)
 
@@ -203,6 +206,28 @@ class Rephraser:
             if j > self.batch_size:
                 break
         return batch
+
+    def get_constrained_id(self,decoder_output, word_count):
+        k = 1
+        cont = False
+        while not cont:
+            topv, topi = decoder_output.data.topk(k)
+            ni = topi[0][-1]
+            id = ni.item()
+            if id in self.vocab_normal.id2word:
+                w = self.vocab_normal.id2word[id]
+            else:
+                w = self.vocab_simple.id2word[id]
+            if w in word_count:
+                word_count[w] += 1
+                cont = True
+            else:
+                word_count[w] = 1
+                cont = True
+            if word_count[w] > self.word_freq[w]:
+                k += 1
+                cont = False
+        return ni
 
     # def to_one_hot(self,idx):
     #     vec = np.zeros((1,self.vocab_size))
@@ -295,11 +320,13 @@ class Rephraser:
 
             decoder_hidden = self.decoder.initHidden()
 
+            word_count = dict()
             for i in range(output_length):
                 decoder_output, decoder_hidden = \
                     self.decoder(prev_word, decoder_hidden, cnn_a, cnn_c, input_variable, i, self.vocab_simple)
-                topv, topi = decoder_output.data.topk(1)
-                ni = topi[0][0]
+
+                ni = self.get_constrained_id(decoder_output,word_count)
+
                 prev_word = Variable(torch.LongTensor([[ni]]))
                 prev_word = prev_word.cuda() if self.use_cuda else prev_word
                 # one_hot = self.to_one_hot(output_variable[i])
@@ -347,13 +374,14 @@ class Rephraser:
         target_sent = []
         ni = 0
         out_length = 0
+        word_count = dict()
         while not ni == 1 and out_length < self.max_len:
             decoder_output, decoder_hidden = \
                 self.decoder(prev_word, decoder_hidden, cnn_a, cnn_c, input_variable, out_length, self.vocab_simple)
 
-            topv, topi = decoder_output.data.topk(1)
-            ni = topi[0][0].item()
-            target_sent.append(self.vocab_simple.id2word[ni])
+            ni = self.get_constrained_id(decoder_output, word_count)
+
+            target_sent.append(self.vocab_simple.id2word[ni.item()])
             prev_word = Variable(torch.LongTensor([[ni]]))
             prev_word = prev_word.cuda() if self.use_cuda else prev_word
             out_length += 1

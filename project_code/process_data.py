@@ -141,6 +141,26 @@ def load_data(base_path, dataset, limit_sent=-1, limit_data=-1):
 #     return average_vec
 
 
+def get_word_frequency(sents):
+    frequencies = dict()
+    for sent in sents:
+        cur_sent_freqs = dict()
+        for word in sent:
+            if word in cur_sent_freqs:
+                cur_sent_freqs[word] += 1
+            else:
+                cur_sent_freqs[word] = 1
+        for word in cur_sent_freqs:
+            if word in frequencies:
+                frequencies[word].append(cur_sent_freqs[word])
+            else:
+                frequencies[word] = [cur_sent_freqs[word]]
+    for word in frequencies:
+        avg = sum(frequencies[word]) // len(frequencies[word])
+        frequencies[word] = avg
+    return frequencies
+
+
 def split_data(normal_sents, simple_sents):
     '''
 
@@ -323,8 +343,8 @@ def sent_to_word_id(sentences, vocab, max_len, eos=True):
         else:
             end = []
 
-        if len(sent) <= max_len:
-            data.append([vocab.word2id[w] for w in sent])
+        # if len(sent) <= max_len:
+        data.append([vocab.word2id[w] for w in sent])
 
     return data
 

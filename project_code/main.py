@@ -8,18 +8,19 @@ from process_data import *
 from model import *
 from collections import namedtuple
 import torch
+import random
 
 VALIDATION_SPLIT = 0.33
 EMBEDDING_DIM = 100
 HIDDEN_SIZE = EMBEDDING_DIM
 DROP_PROB = 0.2
-MAX_LEN_OF_SENTENCE = 50
+MAX_LEN_OF_SENTENCE = 10
 FILTER_SIZES = (2, 3, 4)
 BATCH_SIZE = 32
-NUM_EPOCHES = 1000
+NUM_EPOCHES = 20
 CONV_LAYERS = 5
 LIMIT_DATA_SIZE = -1
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.000001
 DATASET_PATH = '../data/'
 ACTIVE_DATASET = 'newsela'
 
@@ -34,10 +35,14 @@ EVAL_PRINT = 20
 def main():
     assert(len(sys.argv) == 2), 'No GloVe path provided'
 
+    random.seed(0)
     use_cuda = torch.cuda.is_available()
 
     # data preperation
     normal_sents_orig, simple_sents_orig = load_data(DATASET_PATH, ACTIVE_DATASET, MAX_LEN_OF_SENTENCE,limit_data=LIMIT_DATA_SIZE)
+
+    word_freq = get_word_frequency(normal_sents_orig + simple_sents_orig)
+
     normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test = load_dataset(normal_sents_orig, simple_sents_orig, len(normal_sents_orig))
     simple_max_len = max_output_sentece_length(simple_sents_orig)
 
@@ -45,7 +50,6 @@ def main():
     vocab_normal = construct_vocab(normal_sents_orig, vocabulary_normal)
     vocabulary_simple = namedtuple('Vocabulary', ['word2id', 'id2word'])
     vocab_simple = construct_vocab(simple_sents_orig, vocabulary_simple)
-
 
     normal_data = sent_to_word_id(normal_sents_train, vocab_normal, simple_max_len)
     simple_data = sent_to_word_id(simple_sents_train, vocab_simple, simple_max_len)
@@ -76,7 +80,7 @@ def main():
     print('Creating a model')
     model = Rephraser(EMBEDDING_DIM,simple_max_len, DROP_PROB, hidden_size,
                       BATCH_SIZE, NUM_EPOCHES, vocab_normal, vocab_simple,
-                      voc_size_normal, voc_size_simple, CONV_LAYERS, LEARNING_RATE, use_cuda, embedding_matrix=embedding_matrix)
+                      voc_size_normal, voc_size_simple, word_freq, CONV_LAYERS, LEARNING_RATE, use_cuda, embedding_matrix=embedding_matrix)
     #plot_model(model, to_file='model.png', show_shapes=True)
     print('Fitting the model')
     model.trainIters(input_dataset,output_dataset)
@@ -86,10 +90,15 @@ def main():
     eval_set_norm = normal_sents_test[:EVAL_PRINT]
     eval_set_simp = simple_sents_test[:EVAL_PRINT]
 
+    for i in range(min(len(eval_set_norm), len(eval_set_simp))):
+        print(eval_set_norm[i])
+        print(eval_set_simp[i],'\n')
+
     eval_set_norm = sent_to_word_id(eval_set_norm, vocab_normal, MAX_LEN_OF_SENTENCE)
     eval_set_simp = sent_to_word_id(eval_set_simp, vocab_simple, MAX_LEN_OF_SENTENCE)
 
-    for (i, row) in enumerate(zip(eval_set_norm,eval_set_simp)):
+
+    for i in range(min(len(eval_set_norm),len(eval_set_simp))):
         model.evaluate((eval_set_norm[i], eval_set_simp[i]))
 
 if __name__ == '__main__':
