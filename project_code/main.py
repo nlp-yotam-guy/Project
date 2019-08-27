@@ -41,11 +41,14 @@ def main():
     normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test = load_dataset(normal_sents_orig, simple_sents_orig, len(normal_sents_orig))
     simple_max_len = max_output_sentece_length(simple_sents_orig)
 
-    vocabulary = namedtuple('Vocabulary', ['word2id', 'id2word'])
-    vocab = construct_vocab(normal_sents_orig + simple_sents_orig, vocabulary)
+    vocabulary_normal = namedtuple('Vocabulary', ['word2id', 'id2word'])
+    vocab_normal = construct_vocab(normal_sents_orig, vocabulary_normal)
+    vocabulary_simple = namedtuple('Vocabulary', ['word2id', 'id2word'])
+    vocab_simple = construct_vocab(simple_sents_orig, vocabulary_simple)
 
-    normal_data = sent_to_word_id(normal_sents_train, vocab, simple_max_len)
-    simple_data = sent_to_word_id(simple_sents_train, vocab, simple_max_len)
+
+    normal_data = sent_to_word_id(normal_sents_train, vocab_normal, simple_max_len)
+    simple_data = sent_to_word_id(simple_sents_train, vocab_simple, simple_max_len)
 
     input_dataset = [Variable(torch.LongTensor(sent)) for sent in normal_data]
     output_dataset = [Variable(torch.LongTensor(sent)) for sent in simple_data]
@@ -56,12 +59,13 @@ def main():
     assert(len(normal_data) == len(simple_data)), 'data length doesnt match'
 
     # tokenizer = create_tokenizer(normal_sents_orig + simple_sents_orig)
-    voc_size = len(vocab.word2id) + 1
+    voc_size_normal = len(vocab_normal.word2id) + 1
+    voc_size_simple = len(vocab_simple.word2id) + 1
     glove_path = sys.argv[1]
     embedding_matrix = None
     hidden_size = EMBEDDING_DIM
     if LOAD_EMBEDDINGS:
-        embedding_matrix = build_embedding_matrix(glove_path, vocab, use_cuda)
+        embedding_matrix = build_embedding_matrix(glove_path, vocab_normal, vocab_simple)
         hidden_size = embedding_matrix.shape[1]
 
 
@@ -71,8 +75,8 @@ def main():
     # fit network
     print('Creating a model')
     model = Rephraser(EMBEDDING_DIM,simple_max_len, DROP_PROB, hidden_size,
-                      BATCH_SIZE, NUM_EPOCHES, vocab,
-                      voc_size, CONV_LAYERS, LEARNING_RATE, use_cuda, embedding_matrix=embedding_matrix)
+                      BATCH_SIZE, NUM_EPOCHES, vocab_normal, vocab_simple,
+                      voc_size_normal, voc_size_simple, CONV_LAYERS, LEARNING_RATE, use_cuda, embedding_matrix=embedding_matrix)
     #plot_model(model, to_file='model.png', show_shapes=True)
     print('Fitting the model')
     model.trainIters(input_dataset,output_dataset)
@@ -82,11 +86,11 @@ def main():
     eval_set_norm = normal_sents_test[:EVAL_PRINT]
     eval_set_simp = simple_sents_test[:EVAL_PRINT]
 
-    eval_set_norm = sent_to_word_id(eval_set_norm, vocab, MAX_LEN_OF_SENTENCE)
-    eval_set_simp = sent_to_word_id(eval_set_simp, vocab, MAX_LEN_OF_SENTENCE)
+    eval_set_norm = sent_to_word_id(eval_set_norm, vocab_normal, MAX_LEN_OF_SENTENCE)
+    eval_set_simp = sent_to_word_id(eval_set_simp, vocab_simple, MAX_LEN_OF_SENTENCE)
 
     for (i, row) in enumerate(zip(eval_set_norm,eval_set_simp)):
-        model.evaluate((eval_set_norm[i], eval_set_simp[i]), vocab)
+        model.evaluate((eval_set_norm[i], eval_set_simp[i]))
 
 if __name__ == '__main__':
     main()

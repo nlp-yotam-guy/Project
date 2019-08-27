@@ -73,7 +73,7 @@ class AttnDecoder(nn.Module):
 
         self.use_cuda = use_cuda
 
-    def forward(self, y_i, h_i, cnn_a, cnn_c):
+    def forward(self, y_i, h_i, cnn_a, cnn_c, input_sentence, pos, vocab_simple):
 
         g_i = self.embedding(y_i)
         g_i = F.dropout(g_i, self.dropout, self.training)
@@ -87,6 +87,13 @@ class AttnDecoder(nn.Module):
         gru_hidden = F.dropout(gru_hidden, self.dropout, self.training)
         softmax_output = F.log_softmax(self.dense_o(gru_hidden[-1]))
 
+        if pos < len(input_sentence) and input_sentence[pos].item() not in vocab_simple.id2word:
+            _, j_star = a_i[0].max(0)
+            x_j_star = input_sentence[j_star].item()
+            softmax_output = torch.zeros(len(vocab_simple.id2word) + 1)
+            softmax_output[x_j_star] = 1
+            softmax_output = F.log_softmax(softmax_output)
+            softmax_output = softmax_output.cuda() if self.use_cuda else softmax_output
         return softmax_output, gru_hidden
 
     # function to initialize the hidden layer of GRU.
@@ -101,8 +108,9 @@ class AttnDecoder(nn.Module):
 class Rephraser:
 
     def __init__(self,embed_dim, max_len, drop_prob,
-                 hidden_size, batch_size, n_epoches, vocab,
-                 vocab_size, n_conv_layers, learning_rate, use_cuda, kernel_size=3, embedding_matrix=None):
+                 hidden_size, batch_size, n_epoches, vocab_normal, vocab_simple,
+                 vocab_size_normal, vocab_size_simple
+                 , n_conv_layers, learning_rate, use_cuda, kernel_size=3, embedding_matrix=None):
 
         self.embed_dim = embed_dim
         self.embedding_matrix = embedding_matrix
@@ -111,15 +119,17 @@ class Rephraser:
         self.hidden_size = hidden_size
         self.batch_size = batch_size
         self.n_epoches = n_epoches
-        self.vocab = vocab
-        self.vocab_size = vocab_size
+        self.vocab_normal = vocab_normal
+        self.vocab_simple = vocab_simple
+        self.vocab_size_normal = vocab_size_normal
+        self.vocab_size_simple = vocab_size_simple
         self.n_conv_layers = n_conv_layers
         self.kernel_size = kernel_size
         self.use_cuda = use_cuda
         self.lr = learning_rate
 
-        if embedding_matrix is None:
-            self.embedding_matrix = np.zeros((self.vocab_size,self.embed_dim))
+        # if embedding_matrix is None:
+        #     self.embedding_matrix = np.zeros((self.vocab_size,self.embed_dim))
 
         self.encoder_a = None
         self.encoder_c = None
@@ -145,13 +155,13 @@ class Rephraser:
         m.weight.data.uniform_(-width, width)
 
     def define(self):
-        self.encoder_a = ConvEncoder(self.vocab_size, self.embedding_matrix, self.embed_dim, self.max_len, dropout=self.drop_prob,
+        self.encoder_a = ConvEncoder(self.vocab_size_normal, self.embedding_matrix, self.embed_dim, self.max_len, dropout=self.drop_prob,
                                 num_channels_attn=self.hidden_size, num_channels_conv=self.hidden_size,
                                 num_layers=self.n_conv_layers)
-        self.encoder_c = ConvEncoder(self.vocab_size, self.embedding_matrix, self.embed_dim, self.max_len, dropout=self.drop_prob,
+        self.encoder_c = ConvEncoder(self.vocab_size_normal, self.embedding_matrix, self.embed_dim, self.max_len, dropout=self.drop_prob,
                                 num_channels_attn=self.hidden_size, num_channels_conv=self.hidden_size,
                                 num_layers=self.n_conv_layers)
-        self.decoder = AttnDecoder(self.vocab_size, self.use_cuda, dropout=self.drop_prob,
+        self.decoder = AttnDecoder(self.vocab_size_simple, self.use_cuda, dropout=self.drop_prob,
                               hidden_size_gru=self.hidden_size, embedding_size=self.embed_dim,
                               attn_size=self.hidden_size, cnn_size=self.hidden_size)
 
@@ -188,12 +198,12 @@ class Rephraser:
                 break
         return batch
 
-    def to_one_hot(self,idx):
-        vec = np.zeros((1,self.vocab_size))
-        vec[0][idx] = 1
-        vec = Variable(torch.LongTensor(vec))
-        vec = vec.cuda() if self.use_cuda else vec
-        return vec
+    # def to_one_hot(self,idx):
+    #     vec = np.zeros((1,self.vocab_size))
+    #     vec[0][idx] = 1
+    #     vec = Variable(torch.LongTensor(vec))
+    #     vec = vec.cuda() if self.use_cuda else vec
+    #     return vec
 
     def trainIters(self, input_dataset, output_dataset, print_every=100):
 
@@ -281,7 +291,7 @@ class Rephraser:
 
             for i in range(output_length):
                 decoder_output, decoder_hidden = \
-                    self.decoder(prev_word, decoder_hidden, cnn_a, cnn_c)
+                    self.decoder(prev_word, decoder_hidden, cnn_a, cnn_c, input_variable, i, self.vocab_simple)
                 topv, topi = decoder_output.data.topk(1)
                 ni = topi[0][0]
                 prev_word = Variable(torch.LongTensor([[ni]]))
@@ -302,7 +312,7 @@ class Rephraser:
 
 
     # evaluate the the model
-    def evaluate(self,sent_pair, vocab):
+    def evaluate(self,sent_pair):
         self.encoder_a.training = False
         self.encoder_c.training = False
         self.decoder.training = False
@@ -333,17 +343,18 @@ class Rephraser:
         out_length = 0
         while not ni == 1 and out_length < self.max_len:
             decoder_output, decoder_hidden = \
-                self.decoder(prev_word, decoder_hidden, cnn_a, cnn_c)
+                self.decoder(prev_word, decoder_hidden, cnn_a, cnn_c, input_variable, out_length, self.vocab_simple)
 
             topv, topi = decoder_output.data.topk(1)
             ni = topi[0][0].item()
-            target_sent.append(vocab.id2word[ni])
+            target_sent.append(self.vocab_simple.id2word[ni])
             prev_word = Variable(torch.LongTensor([[ni]]))
             prev_word = prev_word.cuda() if self.use_cuda else prev_word
             out_length += 1
 
-        orig_sent = word_id_to_sent(sent_pair[0],self.vocab)
-        expected_sent = word_id_to_sent(sent_pair[1],self.vocab)
+
+        orig_sent = word_id_to_sent(sent_pair[0], self.vocab_normal)
+        expected_sent = word_id_to_sent(sent_pair[1], self.vocab_simple)
         print("Source: " + orig_sent)
         print("Translated: " + ' '.join(target_sent))
         print("Expected: " + expected_sent)

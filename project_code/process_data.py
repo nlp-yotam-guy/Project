@@ -161,7 +161,7 @@ def split_data(normal_sents, simple_sents):
     return normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test
 
 
-def build_embedding_matrix(glove_path, vocab, use_cuda):
+def build_embedding_matrix(glove_path, vocab_normal, vocab_simple):
     '''
     build embedding matrix of size (Vocab_size, embedding_dim) (GloVe)
     returns the embedding matrix and a word-to-index dictionary
@@ -173,13 +173,11 @@ def build_embedding_matrix(glove_path, vocab, use_cuda):
         values = line.split()
         word = values[0]
         coefs = np.asarray(values[1:], dtype='float32')
-        #coefs = Variable(torch.LongTensor(coefs))
-        #coefs = coefs.cuda() if use_cuda else coefs
         embeddings_index[word] = coefs
     f.close()
     print('Loaded %s word vectors.' % len(embeddings_index))
     # create a weight matrix for words in training docs
-    word_index = vocab.word2id
+    word_index = {**vocab_normal.word2id, **vocab_normal.word2id}
     num_words = len(word_index) + 1
     embedding_matrix = np.zeros((num_words, len(embeddings_index[word])))
     unk_list = []
