@@ -176,7 +176,7 @@ def build_embedding_matrix(glove_path, vocab):
     f.close()
     print('Loaded %s word vectors.' % len(embeddings_index))
     # create a weight matrix for words in training docs
-    word_index = vocab.wotd2id
+    word_index = vocab.word2id
     num_words = len(word_index) + 1
     embedding_matrix = np.zeros((num_words, len(embeddings_index[word])))
     unk_list = []
