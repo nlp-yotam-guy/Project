@@ -288,6 +288,7 @@ class Rephraser:
                 prev_word = prev_word.cuda() if self.use_cuda else prev_word
                 # one_hot = self.to_one_hot(output_variable[i])
                 out = Variable(torch.LongTensor([output_variable[i]]))
+                out = out.cuda() if self.use_cuda else out
                 loss += self.criterion(decoder_output, out)
 
                 if ni == 1:  # EOS
