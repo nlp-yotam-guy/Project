@@ -90,11 +90,17 @@ class AttnDecoder(nn.Module):
         if pos < len(input_sentence) and input_sentence[pos].item() not in vocab_simple.id2word:
             _, j_star = a_i[0].max(0)
             x_j_star = input_sentence[j_star].item()
-            softmax_output = torch.zeros(len(vocab_simple.id2word) + 1)
-            softmax_output[x_j_star] = 1
-            softmax_output = F.log_softmax(softmax_output)
-            softmax_output = softmax_output.cuda() if self.use_cuda else softmax_output
+            if x_j_star > len(vocab_simple.id2word) + 1:
+                return softmax_output, gru_hidden
+            else:
+                softmax_output_copy = torch.zeros(len(vocab_simple.id2word) + 1)
+                softmax_output_copy[x_j_star] = 1
+                softmax_output_copy = F.log_softmax(softmax_output_copy)
+                softmax_output_copy = softmax_output_copy.view(1, len(softmax_output_copy))
+                softmax_output_copy = softmax_output_copy.cuda() if self.use_cuda else softmax_output_copy
+                return softmax_output_copy, gru_hidden
         return softmax_output, gru_hidden
+
 
     # function to initialize the hidden layer of GRU.
     def initHidden(self):
