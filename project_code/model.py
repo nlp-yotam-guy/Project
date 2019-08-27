@@ -257,6 +257,7 @@ class Rephraser:
             # Encoder outputs: We use this variable to collect the outputs
             # from encoder after each time step. This will be sent to the decoder.
             position_ids = Variable(torch.LongTensor(range(0, input_length)))
+            input_variable = Variable(torch.LongTensor(input_variable))
             position_ids = position_ids.cuda() if self.use_cuda else position_ids
             cnn_a = self.encoder_a(position_ids, input_variable)
             cnn_c = self.encoder_c(position_ids, input_variable)
