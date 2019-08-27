@@ -1,7 +1,7 @@
 # choose GPU
 import os
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
-os.environ["CUDA_VISIBLE_DEVICES"]="6"
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID" 
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import sys
 from process_data import *
@@ -47,6 +47,12 @@ def main():
     normal_data = sent_to_word_id(normal_sents_train, vocab, simple_max_len)
     simple_data = sent_to_word_id(simple_sents_train, vocab, simple_max_len)
 
+    input_dataset = [Variable(torch.LongTensor(sent)) for sent in normal_data]
+    output_dataset = [Variable(torch.LongTensor(sent)) for sent in simple_data]
+    if use_cuda: # And if cuda is available use the cuda tensor types
+        input_dataset = [i.cuda() for i in input_dataset]
+        output_dataset = [i.cuda() for i in output_dataset]
+
     assert(len(normal_data) == len(simple_data)), 'data length doesnt match'
 
     # tokenizer = create_tokenizer(normal_sents_orig + simple_sents_orig)
@@ -69,7 +75,7 @@ def main():
                       voc_size, CONV_LAYERS, LEARNING_RATE, use_cuda, embedding_matrix=embedding_matrix)
     #plot_model(model, to_file='model.png', show_shapes=True)
     print('Fitting the model')
-    model.trainIters(normal_data,simple_data)
+    model.trainIters(input_dataset,output_dataset)
     # # test on some training sequences
     print('Training the model')
 

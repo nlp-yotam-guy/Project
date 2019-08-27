@@ -246,19 +246,21 @@ class Rephraser:
             input_variable = input_variables[count]
             output_variable = output_variables[count]
 
-            # input_length = input_variable.size()[0]
-            # output_length = output_variable.size()[0]
+            input_length = input_variable.size()[0]
+            output_length = output_variable.size()[0]
 
-            input_length = len(input_variable)
-            output_length = len(output_variable)
+            # input_length = len(input_variable)
+            # output_length = len(output_variable)
 
             loss = 0
 
             # Encoder outputs: We use this variable to collect the outputs
             # from encoder after each time step. This will be sent to the decoder.
             position_ids = Variable(torch.LongTensor(range(0, input_length)))
-            input_variable = Variable(torch.LongTensor(input_variable))
+            # input_variable = Variable(torch.LongTensor(input_variable))
             position_ids = position_ids.cuda() if self.use_cuda else position_ids
+            # input_variable = input_variable.cuda() if self.use_cuda else input_variable
+
             cnn_a = self.encoder_a(position_ids, input_variable)
             cnn_c = self.encoder_c(position_ids, input_variable)
 
