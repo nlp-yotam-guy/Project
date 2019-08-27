@@ -327,6 +327,13 @@ def sent_to_word_id(sentences, vocab, max_len, eos=True):
 
     return data
 
+def word_id_to_sent(ids,vocab):
+    words = []
+    for id in ids:
+        words.append(vocab.id2word[id])
+    sent = ' '.join(words)
+    return sent
+
 
 if __name__ == '__main__':
     pass

@@ -1,6 +1,6 @@
 # choose GPU
 import os
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID" 
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import sys
@@ -80,7 +80,7 @@ def main():
     print('Training the model')
 
     eval_set_norm = normal_sents_test[:EVAL_PRINT]
-    eval_set_simp = normal_sents_test[:EVAL_PRINT]
+    eval_set_simp = simple_sents_test[:EVAL_PRINT]
 
     eval_set_norm = sent_to_word_id(eval_set_norm, vocab, MAX_LEN_OF_SENTENCE)
     eval_set_simp = sent_to_word_id(eval_set_simp, vocab, MAX_LEN_OF_SENTENCE)

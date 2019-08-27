@@ -149,7 +149,7 @@ class Rephraser:
         self.encoder_c = ConvEncoder(self.vocab_size, self.embed_dim, self.max_len, dropout=self.drop_prob,
                                 num_channels_attn=self.hidden_size, num_channels_conv=self.hidden_size,
                                 num_layers=self.n_conv_layers)
-        self.decoder = AttnDecoder(self.vocab_size, self.max_len, dropout=self.drop_prob,
+        self.decoder = AttnDecoder(self.vocab_size, self.use_cuda, dropout=self.drop_prob,
                               hidden_size_gru=self.hidden_size, embedding_size=self.embed_dim,
                               attn_size=self.hidden_size, cnn_size=self.hidden_size)
 
@@ -185,6 +185,13 @@ class Rephraser:
             if j > self.batch_size:
                 break
         return batch
+
+    def to_one_hot(self,idx):
+        vec = np.zeros((1,self.vocab_size))
+        vec[0][idx] = 1
+        vec = Variable(torch.LongTensor(vec))
+        vec = vec.cuda() if self.use_cuda else vec
+        return vec
 
     def trainIters(self, input_dataset, output_dataset, print_every=100):
 
@@ -222,8 +229,7 @@ class Rephraser:
             #     print([self.vocab.id2word[j] for j in input_variable[i]])
             #     print([self.vocab.id2word[j] for j in target_variable[i]],'\n')
 
-            loss = self.train(input_variable, target_variable, self.encoder_a_optimizer, self.encoder_c_optimizer,
-                              self.decoder_optimizer)
+            loss = self.train(input_variable, target_variable)
 
             print_loss_total += loss
 
@@ -233,8 +239,7 @@ class Rephraser:
                 print_loss_total = 0
         print("Training Completed")
 
-    def train(self,input_variables, output_variables,
-              encoder_a_optimizer, encoder_c_optimizer, decoder_optimizer,):
+    def train(self,input_variables, output_variables):
 
         # Initialize the gradients to zero
         self.encoder_a_optimizer.zero_grad()
@@ -256,7 +261,7 @@ class Rephraser:
 
             # Encoder outputs: We use this variable to collect the outputs
             # from encoder after each time step. This will be sent to the decoder.
-            position_ids = Variable(torch.LongTensor(range(0, input_length)))
+            position_ids = Variable(torch.LongTensor(list(range(0, input_length))))
             # input_variable = Variable(torch.LongTensor(input_variable))
             position_ids = position_ids.cuda() if self.use_cuda else position_ids
             # input_variable = input_variable.cuda() if self.use_cuda else input_variable
@@ -279,17 +284,18 @@ class Rephraser:
                 ni = topi[0][0]
                 prev_word = Variable(torch.LongTensor([[ni]]))
                 prev_word = prev_word.cuda() if self.use_cuda else prev_word
-                loss += self.criterion(decoder_output, output_variable[i])
+                # one_hot = self.to_one_hot(output_variable[i])
+                out = Variable(torch.LongTensor([output_variable[i]]))
+                loss += self.criterion(decoder_output, out)
 
                 if ni == 1:  # EOS
                     break
 
         # Backpropagation
         loss.backward()
-        encoder_a_optimizer.step()
-        decoder_optimizer.step()
-
-        return loss.data[0] / output_length
+        self.encoder_a_optimizer.step()
+        self.decoder_optimizer.step()
+        return loss.item() / output_length
 
 
     # evaluate the the model
@@ -297,10 +303,11 @@ class Rephraser:
         self.encoder_a.training = False
         self.encoder_c.training = False
         self.decoder.training = False
-        source_sent = sent_to_word_id(np.array([sent_pair[0]]), vocab)
+        # source_sent = sent_to_word_id(np.array([sent_pair[0]]), vocab, self.max_len)
+        source_sent = sent_pair[0]
         if (len(source_sent) == 0):
             return
-        source_sent = source_sent[0]
+        # source_sent = source_sent[0]
         input_variable = Variable(torch.LongTensor(source_sent))
 
         if self.use_cuda:
@@ -321,20 +328,22 @@ class Rephraser:
         target_sent = []
         ni = 0
         out_length = 0
-        while not ni == 1 and out_length < 10:
+        while not ni == 1 and out_length < self.max_len:
             decoder_output, decoder_hidden = \
                 self.decoder(prev_word, decoder_hidden, cnn_a, cnn_c)
 
             topv, topi = decoder_output.data.topk(1)
-            ni = topi[0][0]
+            ni = topi[0][0].item()
             target_sent.append(vocab.id2word[ni])
             prev_word = Variable(torch.LongTensor([[ni]]))
             prev_word = prev_word.cuda() if self.use_cuda else prev_word
             out_length += 1
 
-        print("Source: " + sent_pair[0])
+        orig_sent = word_id_to_sent(sent_pair[0],self.vocab)
+        expected_sent = word_id_to_sent(sent_pair[1],self.vocab)
+        print("Source: " + orig_sent)
         print("Translated: " + ' '.join(target_sent))
-        print("Expected: " + sent_pair[1])
+        print("Expected: " + expected_sent)
         print("")
 
 
