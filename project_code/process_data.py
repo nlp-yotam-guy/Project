@@ -1,5 +1,6 @@
 import numpy as np
-
+import torch
+from torch.autograd import Variable
 WIKI_SIMPLE = '/normal.aligned'
 WIKI_NORMAL = '/simple.aligned'
 NEWSELA = '/newsela_articles_20150302.aligned.sents.txt'
@@ -160,7 +161,7 @@ def split_data(normal_sents, simple_sents):
     return normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test
 
 
-def build_embedding_matrix(glove_path, vocab):
+def build_embedding_matrix(glove_path, vocab, use_cuda):
     '''
     build embedding matrix of size (Vocab_size, embedding_dim) (GloVe)
     returns the embedding matrix and a word-to-index dictionary
@@ -172,6 +173,8 @@ def build_embedding_matrix(glove_path, vocab):
         values = line.split()
         word = values[0]
         coefs = np.asarray(values[1:], dtype='float32')
+        coefs = Variable(torch.LongTensor(coefs))
+        coefs = coefs.cuda() if use_cuda else coefs
         embeddings_index[word] = coefs
     f.close()
     print('Loaded %s word vectors.' % len(embeddings_index))

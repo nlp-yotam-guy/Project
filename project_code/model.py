@@ -19,7 +19,7 @@ class ConvEncoder(nn.Module):
         super(ConvEncoder, self).__init__()
         self.position_embedding = nn.Embedding(max_len, embedding_size)
         self.word_embedding = nn.Embedding(vocab_size, embedding_size)
-        self.word_embedding.load_state_dict({'weight': embedding_matrix})
+        self.word_embedding.weight.data.copy_(torch.from_numpy(embedding_matrix))
         self.word_embedding.weight.requires_grad = False
         self.num_layers = num_layers
         self.dropout = dropout

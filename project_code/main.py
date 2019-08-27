@@ -61,7 +61,7 @@ def main():
     embedding_matrix = None
     hidden_size = EMBEDDING_DIM
     if LOAD_EMBEDDINGS:
-        embedding_matrix = build_embedding_matrix(glove_path, vocab)
+        embedding_matrix = build_embedding_matrix(glove_path, vocab, use_cuda)
         hidden_size = embedding_matrix.shape[1]
 
 
