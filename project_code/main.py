@@ -71,18 +71,16 @@ def main():
     embedding_matrix = None
     hidden_size = EMBEDDING_DIM
     if LOAD_EMBEDDINGS:
-        embedding_matrix = build_embedding_matrix(glove_path, vocab_normal, vocab_simple)
-        hidden_size = embedding_matrix.shape[1]
+        embedding_matrix_normal = build_embedding_matrix(glove_path, vocab_normal)
+        embedding_matrix_simple = build_embedding_matrix(glove_path, vocab_simple)
+        hidden_size = embedding_matrix_normal.shape[1]
 
-
-
-    # train_generator = Batch_Generator(normal_sents_train, simple_sents_train, tokenizer, embedding_matrix, BATCH_SIZE,
-    #                                   MAX_LEN_OF_SENTENCE, MAX_LEN_OF_SENTENCE)
     # fit network
     print('Creating a model')
     model = Rephraser(EMBEDDING_DIM,simple_max_len, DROP_PROB, hidden_size,
                       BATCH_SIZE, NUM_EPOCHES, vocab_normal, vocab_simple,
-                      voc_size_normal, voc_size_simple, word_freq, CONV_LAYERS, LEARNING_RATE, use_cuda, embedding_matrix=embedding_matrix)
+                      voc_size_normal, voc_size_simple, word_freq, CONV_LAYERS, LEARNING_RATE, use_cuda,
+                      embedding_matrix=(embedding_matrix_normal,embedding_matrix_simple))
     #plot_model(model, to_file='model.png', show_shapes=True)
     print('Fitting the model')
     model.trainIters(input_dataset,output_dataset)

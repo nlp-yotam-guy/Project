@@ -19,7 +19,7 @@ class ConvEncoder(nn.Module):
         super(ConvEncoder, self).__init__()
         self.position_embedding = nn.Embedding(max_len, embedding_size)
         self.word_embedding = nn.Embedding(vocab_size, embedding_size)
-        self.word_embedding.weight.data.copy_(torch.from_numpy(embedding_matrix))
+        self.word_embedding.weight.data.copy_(embedding_matrix)
         self.word_embedding.weight.requires_grad = False
         self.num_layers = num_layers
         self.dropout = dropout
@@ -75,9 +75,11 @@ class AttnDecoder(nn.Module):
 
         self.use_cuda = use_cuda
 
-    def forward(self, y_i, h_i, cnn_a, cnn_c, input_sentence, pos, vocab_simple):
+    def forward(self, g_i, h_i, cnn_a, cnn_c, input_sentence, pos, vocab_simple):
 
-        g_i = self.embedding(y_i)
+        # g_i = self.embedding(y_i)
+        shape = [1]+list(g_i.size())
+        g_i = torch.reshape(g_i,shape)
         g_i = F.dropout(g_i, self.dropout, self.training)
 
         d_i = self.transform_gru_hidden(h_i) + g_i
@@ -87,7 +89,7 @@ class AttnDecoder(nn.Module):
         gru_output, gru_hidden = self.gru(torch.cat((g_i, c_i), dim=-1), h_i)
 
         gru_hidden = F.dropout(gru_hidden, self.dropout, self.training)
-        softmax_output = F.log_softmax(self.dense_o(gru_hidden[-1]))
+        softmax_output = F.softmax(self.dense_o(gru_hidden[-1]))
 
         # if pos < len(input_sentence) and input_sentence[pos].item() not in vocab_simple.id2word:
         #     _, j_star = a_i[0].max(0)
@@ -121,7 +123,8 @@ class Rephraser:
                  learning_rate, use_cuda, kernel_size=3, embedding_matrix=None,teacher_forcing_ratio = 0.5):
 
         self.embed_dim = embed_dim
-        self.embedding_matrix = embedding_matrix
+        self.embedding_matrix_normal = torch.from_numpy(embedding_matrix[0])
+        self.embedding_matrix_simple = torch.from_numpy(embedding_matrix[1])
         self.max_len = max_len
         self.drop_prob = drop_prob
         self.hidden_size = hidden_size
@@ -165,10 +168,10 @@ class Rephraser:
         m.weight.data.uniform_(-width, width)
 
     def define(self):
-        self.encoder_a = ConvEncoder(self.vocab_size_normal, self.embedding_matrix, self.embed_dim, self.max_len, dropout=self.drop_prob,
+        self.encoder_a = ConvEncoder(self.vocab_size_normal, self.embedding_matrix_normal, self.embed_dim, self.max_len, dropout=self.drop_prob,
                                 num_channels_attn=self.hidden_size, num_channels_conv=self.hidden_size,
                                 num_layers=self.n_conv_layers)
-        self.encoder_c = ConvEncoder(self.vocab_size_normal, self.embedding_matrix, self.embed_dim, self.max_len, dropout=self.drop_prob,
+        self.encoder_c = ConvEncoder(self.vocab_size_normal, self.embedding_matrix_normal, self.embed_dim, self.max_len, dropout=self.drop_prob,
                                 num_channels_attn=self.hidden_size, num_channels_conv=self.hidden_size,
                                 num_layers=self.n_conv_layers)
         self.decoder = AttnDecoder(self.vocab_size_simple, self.word_freq, self.use_cuda, dropout=self.drop_prob,
@@ -326,12 +329,18 @@ class Rephraser:
             prev_word = Variable(torch.LongTensor([[0]]))  # SOS
             prev_word = prev_word.cuda() if self.use_cuda else prev_word
 
+            # to feed the RNN step with weighted sum of the embedding matrix
+            decoder_output = torch.normal(0.5,1,(1,self.vocab_size_simple))
+            decoder_output = torch.softmax(decoder_output,-1)
+            decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
+            decoder_output = decoder_output.cuda() if self.use_cuda else decoder_output
+
             decoder_hidden = self.decoder.initHidden()
 
             word_count = dict()
             for i in range(output_length):
                 decoder_output, decoder_hidden = \
-                    self.decoder(prev_word, decoder_hidden, cnn_a, cnn_c, input_variable, i, self.vocab_simple)
+                    self.decoder(decoder_output, decoder_hidden, cnn_a, cnn_c, input_variable, i, self.vocab_simple)
 
                 topv, topi = decoder_output.data.topk(1)
                 ni = topi[0][0]
@@ -346,6 +355,9 @@ class Rephraser:
                 out = Variable(torch.LongTensor([output_variable[i]]))
                 out = out.cuda() if self.use_cuda else out
                 loss += self.criterion(decoder_output, out)
+
+                # to feed the RNN step with weighted sum of the embedding matrix
+                decoder_output = torch.mm(decoder_output,self.embedding_matrix_simple)
 
                 if ni == 1:  # EOS
                     break

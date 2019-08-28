@@ -213,7 +213,7 @@ def split_data(normal_sents, simple_sents):
     return normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test
 
 
-def build_embedding_matrix(glove_path, vocab_normal, vocab_simple):
+def build_embedding_matrix(glove_path, vocab):
     '''
     build embedding matrix of size (Vocab_size, embedding_dim) (GloVe)
     returns the embedding matrix and a word-to-index dictionary
@@ -229,9 +229,9 @@ def build_embedding_matrix(glove_path, vocab_normal, vocab_simple):
     f.close()
     print('Loaded %s word vectors.' % len(embeddings_index))
     # create a weight matrix for words in training docs
-    word_index = {**vocab_normal.word2id, **vocab_normal.word2id}
+    word_index = {**vocab.word2id, **vocab.word2id}
     num_words = len(word_index) + 1
-    embedding_matrix = np.zeros((num_words, len(embeddings_index[word])))
+    embedding_matrix = np.zeros((num_words, len(embeddings_index[word])),dtype=np.float32)
     unk_list = []
     for word, i in word_index.items():
         embedding_vector = embeddings_index.get(word)
