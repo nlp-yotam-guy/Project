@@ -78,8 +78,8 @@ def load_wiki(wiki_normal, wiki_simple, limit_sent_len=-1, limit_data=-1):
 
         normal_sent = normal_sent.split(' ')
 
-        if len(normal_sent) > limit_sent_len:
-            continue
+        # if len(normal_sent) > limit_sent_len:
+        #     continue
 
         simple_sent = simple_sent.split(' ')
         del normal_sent[-1]
@@ -113,8 +113,8 @@ def load_newsela(newsela, limit_sent_len=-1, limit_data=-1):
             continue
         normal_sent = splited_line[-2]
         normal_sent = normalizeString(normal_sent).split(' ')
-        if len(normal_sent) > limit_sent_len:
-            continue
+        # if len(normal_sent) > limit_sent_len:
+        #     continue
         if normal_sent[-1] != '.':
             normal_sent.append('.')
         simple_sent = splited_line[-1]
@@ -140,6 +140,16 @@ def load_data(base_path, dataset, limit_sent=-1, limit_data=-1):
         normal_sents, simple_sents = load_newsela(newsela, limit_sent, limit_data)
 
     return normal_sents, simple_sents
+
+
+def filter_sentences(normal,simple,limit):
+    norm = []
+    simp = []
+    for i in range(len(normal)):
+        if len(normal[i]) <= limit:
+            norm.append(normal[i])
+            simp.append(simple[i])
+    return norm,simp
 
 #
 # def create_vector_unknown_token(glove):

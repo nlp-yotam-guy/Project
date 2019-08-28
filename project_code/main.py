@@ -41,15 +41,17 @@ def main():
     # data preperation
     normal_sents_orig, simple_sents_orig = load_data(DATASET_PATH, ACTIVE_DATASET, MAX_LEN_OF_SENTENCE,limit_data=LIMIT_DATA_SIZE)
 
-    word_freq = get_word_frequency(normal_sents_orig + simple_sents_orig)
-
-    normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test = load_dataset(normal_sents_orig, simple_sents_orig, len(normal_sents_orig))
-    simple_max_len = max_output_sentece_length(simple_sents_orig)
-
     vocabulary_normal = namedtuple('Vocabulary', ['word2id', 'id2word'])
     vocab_normal = construct_vocab(normal_sents_orig, vocabulary_normal)
     vocabulary_simple = namedtuple('Vocabulary', ['word2id', 'id2word'])
     vocab_simple = construct_vocab(simple_sents_orig, vocabulary_simple)
+
+    word_freq = get_word_frequency(normal_sents_orig + simple_sents_orig)
+
+    normal_sents,simple_sents = filter_sentences(normal_sents_orig,simple_sents_orig,MAX_LEN_OF_SENTENCE)
+
+    normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test = load_dataset(normal_sents, simple_sents, len(normal_sents_orig))
+    simple_max_len = max_output_sentece_length(simple_sents_orig)
 
     normal_data = sent_to_word_id(normal_sents_train, vocab_normal, simple_max_len)
     simple_data = sent_to_word_id(simple_sents_train, vocab_simple, simple_max_len)
