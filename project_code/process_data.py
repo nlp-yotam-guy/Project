@@ -1,6 +1,9 @@
 import numpy as np
 import torch
 from torch.autograd import Variable
+import re
+import unicodedata
+
 WIKI_SIMPLE = '/normal.aligned'
 WIKI_NORMAL = '/simple.aligned'
 NEWSELA = '/newsela_articles_20150302.aligned.sents.txt'
@@ -33,6 +36,22 @@ EOS_TOKEN = "."
 #         # return (train_normal, np.arange(len(train_normal))), train_simple
 #         return train_normal, train_simple
 
+# Turn a Unicode string to plain ASCII, thanks to
+# https://stackoverflow.com/a/518232/2809427
+def unicodeToAscii(s):
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', s)
+        if unicodedata.category(c) != 'Mn'
+    )
+
+# Lowercase, trim, and remove non-letter characters
+
+
+def normalizeString(s):
+    s = unicodeToAscii(s.lower().strip())
+    s = re.sub(r"([.!?])", r" \1", s)
+    s = re.sub(r"[^a-zA-Z.!?]+", r" ", s)
+    return s
 
 def load_wiki(wiki_normal, wiki_simple, limit_sent_len=-1, limit_data=-1):
     f_wiki_simple = open(wiki_simple, 'r', encoding="utf8")

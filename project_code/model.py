@@ -97,10 +97,10 @@ class AttnDecoder(nn.Module):
         #     else:
         #         softmax_output.fill_(0)
         #         softmax_output[0][x_j_star] = 1
-                # softmax_output_copy = F.log_softmax(softmax_output_copy)
-                # softmax_output_copy = softmax_output_copy.view(1, len(softmax_output_copy))
-                # softmax_output_copy = softmax_output_copy.cuda() if self.use_cuda else softmax_output_copy
-                # return softmax_output_copy, gru_hidden
+        #         softmax_output_copy = F.log_softmax(softmax_output_copy)
+        #         softmax_output_copy = softmax_output_copy.view(1, len(softmax_output_copy))
+        #         softmax_output_copy = softmax_output_copy.cuda() if self.use_cuda else softmax_output_copy
+        #         return softmax_output_copy, gru_hidden
         return softmax_output, gru_hidden
 
 
@@ -118,7 +118,7 @@ class Rephraser:
     def __init__(self,embed_dim, max_len, drop_prob,
                  hidden_size, batch_size, n_epoches, vocab_normal, vocab_simple,
                  vocab_size_normal, vocab_size_simple, word_freq, n_conv_layers,
-                 learning_rate, use_cuda, kernel_size=3, embedding_matrix=None):
+                 learning_rate, use_cuda, kernel_size=3, embedding_matrix=None,teacher_forcing_ratio = 0.5):
 
         self.embed_dim = embed_dim
         self.embedding_matrix = embedding_matrix
@@ -136,6 +136,7 @@ class Rephraser:
         self.kernel_size = kernel_size
         self.use_cuda = use_cuda
         self.lr = learning_rate
+        self.teacher_forcing_ratio = teacher_forcing_ratio
 
         # if embedding_matrix is None:
         #     self.embedding_matrix = np.zeros((self.vocab_size,self.embed_dim))
@@ -289,10 +290,17 @@ class Rephraser:
         self.encoder_c_optimizer.zero_grad()
         self.decoder_optimizer.zero_grad()
 
+        use_teacher_forcing = True if random.random() < self.teacher_forcing_ratio else False
+
         for count in range(self.batch_size):
             # Length of input and output sentences
             input_variable = input_variables[count]
             output_variable = output_variables[count]
+
+            # a = [input_variable[k].item() for k in range(len(input_variable))]
+            # print([self.vocab_normal.id2word[a[i]] for i in range(len(input_variable))])
+            # b = [output_variable[k].item() for k in range(len(output_variable))]
+            # print([self.vocab_simple.id2word[b[i]] for i in range(len(output_variable))],'\n')
 
             input_length = input_variable.size()[0]
             output_length = output_variable.size()[0]
@@ -325,9 +333,14 @@ class Rephraser:
                 decoder_output, decoder_hidden = \
                     self.decoder(prev_word, decoder_hidden, cnn_a, cnn_c, input_variable, i, self.vocab_simple)
 
-                ni = self.get_constrained_id(decoder_output,word_count)
+                topv, topi = decoder_output.data.topk(1)
+                ni = topi[0][0]
+                # ni = self.get_constrained_id(decoder_output,word_count)
 
-                prev_word = Variable(torch.LongTensor([[ni]]))
+                if use_teacher_forcing:
+                    prev_word = Variable(torch.LongTensor([[output_variable[i]]]))
+                else:
+                    prev_word = Variable(torch.LongTensor([[ni]]))
                 prev_word = prev_word.cuda() if self.use_cuda else prev_word
                 # one_hot = self.to_one_hot(output_variable[i])
                 out = Variable(torch.LongTensor([output_variable[i]]))
