@@ -330,7 +330,7 @@ class Rephraser:
             prev_word = prev_word.cuda() if self.use_cuda else prev_word
 
             # to feed the RNN step with weighted sum of the embedding matrix
-            decoder_output = torch.normal(0.5,1,(1,self.vocab_size_simple))
+            decoder_output = torch.normal(Variable(torch.LongTensor(0.5)),Variable(torch.LongTensor(1)),(1,self.vocab_size_simple))
             decoder_output = torch.softmax(decoder_output,-1)
             decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
             decoder_output = decoder_output.cuda() if self.use_cuda else decoder_output
