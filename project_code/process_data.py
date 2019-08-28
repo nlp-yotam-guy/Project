@@ -70,8 +70,8 @@ def load_wiki(wiki_normal, wiki_simple, limit_sent_len=-1, limit_data=-1):
     for normal_line, simple_line in zip(normal_sents_orig, simple_sents_orig):
         if i > limit_data:
             break
-        normal_sent = normal_line.split('\t')[-1].lower()
-        simple_sent = simple_line.split('\t')[-1].lower()
+        normal_sent = normalizeString(normal_line.split('\t')[-1])
+        simple_sent = normalizeString(simple_line.split('\t')[-1])
 
         if normal_sent == simple_sents:
             continue
@@ -111,13 +111,16 @@ def load_newsela(newsela, limit_sent_len=-1, limit_data=-1):
         splited_line = line.split('\t')
         if splited_line[-2] == splited_line[-1]:
             continue
-        normal_sent = splited_line[-2].lower().split(' ')
+        normal_sent = splited_line[-2]
+        normal_sent = normalizeString(normal_sent).split(' ')
         if len(normal_sent) > limit_sent_len:
             continue
         if normal_sent[-1] != '.':
             normal_sent.append('.')
-        simple_sent = splited_line[-1].lower().split(' ')
+        simple_sent = splited_line[-1]
+        simple_sent = normalizeString(simple_sent).split(' ')
         simple_sent[-1] = simple_sent[-1].replace('\n', '')
+
         normal_sents.append(normal_sent)
         simple_sents.append(simple_sent)
         i += 1
