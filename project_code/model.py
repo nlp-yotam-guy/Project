@@ -334,8 +334,9 @@ class Rephraser:
             decoder_output = normal_dist.sample((self.vocab_size_simple,))
             decoder_output = decoder_output.reshape(1, self.vocab_size_simple)
             decoder_output = torch.softmax(decoder_output, -1)
-            decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple.cuda())
+            decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
             decoder_output = decoder_output.cuda() if self.use_cuda else decoder_output
+            self.embedding_matrix_simple = self.embedding_matrix_simple.cuda() if self.use_cuda else self.embedding_matrix_simple
 
             decoder_hidden = self.decoder.initHidden()
 
