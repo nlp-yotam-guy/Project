@@ -331,8 +331,9 @@ class Rephraser:
 
             # to feed the RNN step with weighted sum of the embedding matrix
             normal_dist = torch.distributions.normal.Normal(torch.tensor([0.5]),torch.tensor([1.0]))
-            decoder_output = normal_dist.sample((1, self.vocab_size_simple))
-            decoder_output = torch.softmax(decoder_output,-1)
+            decoder_output = normal_dist.sample((self.vocab_size_simple,))
+            decoder_output = decoder_output.reshape(1, self.vocab_size_simple)
+            decoder_output = torch.softmax(decoder_output, -1)
             decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
             decoder_output = decoder_output.cuda() if self.use_cuda else decoder_output
 
