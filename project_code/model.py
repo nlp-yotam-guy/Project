@@ -155,9 +155,10 @@ class Rephraser:
                                                                      dtype=np.float32))
             self.embedding_matrix_simple = torch.from_numpy(np.zeros((self.vocab_size_simple, self.embed_dim),
                                                                      dtype=np.float32))
-        self.embedding_matrix_normal = self.embedding_matrix_normal.cuda() if use_cuda \
+
+        self.embedding_matrix_normal = self.embedding_matrix_normal.cuda() if self.use_cuda \
             else self.embedding_matrix_normal
-        self.embedding_matrix_simpple = self.embedding_matrix_simple.cuda() if use_cuda \
+        self.embedding_matrix_simple = self.embedding_matrix_simple.cuda() if self.use_cuda \
             else self.embedding_matrix_simple
 
         self.encoder_a = None
