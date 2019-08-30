@@ -19,20 +19,19 @@ FILTER_SIZES = (2, 3, 4)
 BATCH_SIZE = 32
 NUM_EPOCHES = 1000
 CONV_LAYERS = 5
-LIMIT_DATA_SIZE = -1
+LIMIT_DATA_SIZE = 1000
 LEARNING_RATE = 0.000001
 DATASET_PATH = '../data/'
 ACTIVE_DATASET = 'newsela'
 
 # set to false for quicker run time (good for debugging)
-LOAD_EMBEDDINGS = True
+LOAD_EMBEDDINGS = False
 
 EVAL_PRINT = 20
 
 
 def main():
     assert(len(sys.argv) == 2), 'No GloVe path provided'
-
     random.seed(0)
     use_cuda = torch.cuda.is_available()
 
