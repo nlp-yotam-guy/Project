@@ -1,7 +1,7 @@
 # choose GPU
 import os
 #os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-#os.environ["CUDA_VISIBLE_DEVICES"]="0"
+#os.environ["CUDA_VISIBLE_DEVICES"]="6"
 
 import sys
 from process_data import *
@@ -19,13 +19,13 @@ FILTER_SIZES = (2, 3, 4)
 BATCH_SIZE = 32
 NUM_EPOCHES = 20
 CONV_LAYERS = 5
-LIMIT_DATA_SIZE = -1
+LIMIT_DATA_SIZE = 1000
 LEARNING_RATE = 0.000001
 DATASET_PATH = '../data/'
 ACTIVE_DATASET = 'newsela'
 
 # set to false for quicker run time (good for debugging)
-LOAD_EMBEDDINGS = True
+LOAD_EMBEDDINGS = False
 
 EVAL_PRINT = 20
 
@@ -68,7 +68,8 @@ def main():
     voc_size_normal = len(vocab_normal.word2id) + 1
     voc_size_simple = len(vocab_simple.word2id) + 1
     glove_path = sys.argv[1]
-    embedding_matrix = None
+    embedding_matrix_normal = None
+    embedding_matrix_simple = None
     hidden_size = EMBEDDING_DIM
     if LOAD_EMBEDDINGS:
         embedding_matrix_normal = build_embedding_matrix(glove_path, vocab_normal)

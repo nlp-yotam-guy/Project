@@ -52,26 +52,27 @@ class ConvEncoder(nn.Module):
 
 class AttnDecoder(nn.Module):
 
-    def __init__(self, output_vocab_size, word_freq, use_cuda, dropout=0.2, hidden_size_gru=128,
-                 cnn_size=128, attn_size=128, n_layers_gru=1,
+    def __init__(self, output_vocab_size, word_freq, use_cuda, dropout=0.2, hidden_size_lstm=128,
+                 cnn_size=128, attn_size=128, n_layers_lstm=1,
                  embedding_size=128):
 
         super(AttnDecoder, self).__init__()
 
-        self.n_gru_layers = n_layers_gru
-        self.hidden_size_gru = hidden_size_gru
+        self.n_lstm_layers = n_layers_lstm
+        self.hidden_size_lstm = hidden_size_lstm
         self.output_vocab_size = output_vocab_size
         self.dropout = dropout
         self.word_freq = word_freq
         self.word_count = dict()
 
-        self.embedding = nn.Embedding(output_vocab_size, hidden_size_gru)
-        self.gru = nn.GRU(hidden_size_gru + embedding_size, hidden_size_gru,
-                          n_layers_gru)
-        self.transform_gru_hidden = nn.Linear(hidden_size_gru, embedding_size)
-        self.dense_o = nn.Linear(hidden_size_gru, output_vocab_size)
+        self.embedding = nn.Embedding(output_vocab_size, hidden_size_lstm)
+        self.lstm = nn.LSTM(hidden_size_lstm + embedding_size, hidden_size_lstm,
+                            n_layers_lstm, bidirectional=True)
+        self.transform_lstm_hidden_in = nn.Linear(hidden_size_lstm, embedding_size)
+        self.transform_lstm_hidden_out = nn.Linear(2*hidden_size_lstm, embedding_size)
+        self.dense_o = nn.Linear(hidden_size_lstm, output_vocab_size)
 
-        self.n_layers_gru = n_layers_gru
+        self.n_layers_lstm = n_layers_lstm
 
         self.use_cuda = use_cuda
 
@@ -82,14 +83,20 @@ class AttnDecoder(nn.Module):
         g_i = torch.reshape(g_i,shape)
         g_i = F.dropout(g_i, self.dropout, self.training)
 
-        d_i = self.transform_gru_hidden(h_i) + g_i
-        a_i = F.softmax(torch.bmm(d_i, cnn_a).view(1, -1))
+        d_i = self.transform_lstm_hidden_in(h_i) + g_i
+        # print(d_i.size(), cnn_a.size())
+        s_i = torch.bmm(d_i, cnn_a)
+        s_i = s_i.view(1, -1)
+        a_i = F.softmax(s_i)
 
         c_i = torch.bmm(a_i.view(1, 1, -1), cnn_c.transpose(1, 2))
-        gru_output, gru_hidden = self.gru(torch.cat((g_i, c_i), dim=-1), h_i)
+        lstm_output, lstm_h = self.lstm(torch.cat((g_i, c_i), dim=-1))
+        lstm_h = lstm_h[0].flatten(0, -1)
+        lstm_h = lstm_h.reshape((1,1,lstm_h.size()[0]))
+        lstm_h = self.transform_lstm_hidden_out(lstm_h)
 
-        gru_hidden = F.dropout(gru_hidden, self.dropout, self.training)
-        softmax_output = F.softmax(self.dense_o(gru_hidden[-1]))
+        lstm_hidden = F.dropout(lstm_h[0], self.dropout, self.training)
+        softmax_output = F.softmax(self.dense_o(lstm_hidden))
 
         # if pos < len(input_sentence) and input_sentence[pos].item() not in vocab_simple.id2word:
         #     _, j_star = a_i[0].max(0)
@@ -103,12 +110,12 @@ class AttnDecoder(nn.Module):
         #         softmax_output_copy = softmax_output_copy.view(1, len(softmax_output_copy))
         #         softmax_output_copy = softmax_output_copy.cuda() if self.use_cuda else softmax_output_copy
         #         return softmax_output_copy, gru_hidden
-        return softmax_output, gru_hidden
+        return softmax_output, lstm_hidden
 
 
     # function to initialize the hidden layer of GRU.
     def initHidden(self):
-        result = Variable(torch.zeros(self.n_layers_gru, 1, self.hidden_size_gru))
+        result = Variable(torch.zeros(self.n_layers_lstm, 1, self.hidden_size_lstm))
         if self.use_cuda:
             return result.cuda()
         else:
@@ -123,8 +130,6 @@ class Rephraser:
                  learning_rate, use_cuda, kernel_size=3, embedding_matrix=None,teacher_forcing_ratio = 0.5):
 
         self.embed_dim = embed_dim
-        self.embedding_matrix_normal = torch.from_numpy(embedding_matrix[0])
-        self.embedding_matrix_simple = torch.from_numpy(embedding_matrix[1])
         self.max_len = max_len
         self.drop_prob = drop_prob
         self.hidden_size = hidden_size
@@ -141,8 +146,14 @@ class Rephraser:
         self.lr = learning_rate
         self.teacher_forcing_ratio = teacher_forcing_ratio
 
-        # if embedding_matrix is None:
-        #     self.embedding_matrix = np.zeros((self.vocab_size,self.embed_dim))
+        if embedding_matrix == (None,None):
+            self.embedding_matrix_normal = torch.from_numpy(np.zeros((self.vocab_size_normal,self.embed_dim),
+                                                                     dtype=np.float32))
+            self.embedding_matrix_simple = torch.from_numpy(np.zeros((self.vocab_size_simple, self.embed_dim),
+                                                                     dtype=np.float32))
+        else:
+            self.embedding_matrix_normal = torch.from_numpy(embedding_matrix[0])
+            self.embedding_matrix_simple = torch.from_numpy(embedding_matrix[1])
 
         self.encoder_a = None
         self.encoder_c = None
@@ -175,7 +186,7 @@ class Rephraser:
                                 num_channels_attn=self.hidden_size, num_channels_conv=self.hidden_size,
                                 num_layers=self.n_conv_layers)
         self.decoder = AttnDecoder(self.vocab_size_simple, self.word_freq, self.use_cuda, dropout=self.drop_prob,
-                              hidden_size_gru=self.hidden_size, embedding_size=self.embed_dim,
+                              hidden_size_lstm=self.hidden_size, embedding_size=self.embed_dim,
                               attn_size=self.hidden_size, cnn_size=self.hidden_size)
 
         if self.use_cuda:
@@ -232,6 +243,13 @@ class Rephraser:
                 k += 1
                 cont = False
         return ni
+
+    def get_initial_encoding(self):
+        decoder_output = torch.normal(0.5, 1, (1, self.vocab_size_simple))
+        decoder_output = torch.softmax(decoder_output, -1)
+        decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
+        decoder_output = decoder_output.cuda() if self.use_cuda else decoder_output
+        return decoder_output
 
     # def to_one_hot(self,idx):
     #     vec = np.zeros((1,self.vocab_size))
@@ -316,9 +334,7 @@ class Rephraser:
             # Encoder outputs: We use this variable to collect the outputs
             # from encoder after each time step. This will be sent to the decoder.
             position_ids = Variable(torch.LongTensor(list(range(0, input_length))))
-            # input_variable = Variable(torch.LongTensor(input_variable))
             position_ids = position_ids.cuda() if self.use_cuda else position_ids
-            # input_variable = input_variable.cuda() if self.use_cuda else input_variable
 
             cnn_a = self.encoder_a(position_ids, input_variable)
             cnn_c = self.encoder_c(position_ids, input_variable)
@@ -330,11 +346,7 @@ class Rephraser:
             prev_word = prev_word.cuda() if self.use_cuda else prev_word
 
             # to feed the RNN step with weighted sum of the embedding matrix
-            decoder_output = torch.normal(0.5,1,(1,self.vocab_size_simple))
-            decoder_output = torch.softmax(decoder_output,-1)
-            decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
-            decoder_output = decoder_output.cuda() if self.use_cuda else decoder_output
-
+            decoder_output = self.get_initial_encoding()
             decoder_hidden = self.decoder.initHidden()
 
             word_count = dict()
@@ -392,9 +404,10 @@ class Rephraser:
         cnn_a = cnn_a.cuda() if self.use_cuda else cnn_a
         cnn_c = cnn_c.cuda() if self.use_cuda else cnn_c
 
-        prev_word = Variable(torch.LongTensor([[0]]))  # SOS
-        prev_word = prev_word.cuda() if self.use_cuda else prev_word
+        # prev_word = Variable(torch.LongTensor([[0]]))  # SOS
+        # prev_word = prev_word.cuda() if self.use_cuda else prev_word
 
+        decoder_output = self.get_initial_encoding()
         decoder_hidden = self.decoder.initHidden()
         target_sent = []
         ni = 0
@@ -402,7 +415,7 @@ class Rephraser:
         word_count = dict()
         while not ni == 1 and out_length < self.max_len:
             decoder_output, decoder_hidden = \
-                self.decoder(prev_word, decoder_hidden, cnn_a, cnn_c, input_variable, out_length, self.vocab_simple)
+                self.decoder(decoder_output, decoder_hidden, cnn_a, cnn_c, input_variable, out_length, self.vocab_simple)
 
             topv, topi = decoder_output.data.topk(1)
             ni = topi[0][0].item()
@@ -410,6 +423,7 @@ class Rephraser:
             prev_word = Variable(torch.LongTensor([[ni]]))
             prev_word = prev_word.cuda() if self.use_cuda else prev_word
             out_length += 1
+            decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
 
 
         orig_sent = word_id_to_sent(sent_pair[0], self.vocab_normal)
