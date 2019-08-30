@@ -146,7 +146,7 @@ class Rephraser:
         self.lr = learning_rate
         self.teacher_forcing_ratio = teacher_forcing_ratio
 
-        if embedding_matrix == (None,None):
+        if embedding_matrix[0] == None:
             self.embedding_matrix_normal = torch.from_numpy(np.zeros((self.vocab_size_normal,self.embed_dim),
                                                                      dtype=np.float32))
             self.embedding_matrix_simple = torch.from_numpy(np.zeros((self.vocab_size_simple, self.embed_dim),
