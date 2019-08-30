@@ -247,10 +247,10 @@ class Rephraser:
     def get_initial_encoding(self):
         # decoder_output = torch.normal(0.5, 1, (1, self.vocab_size_simple))
         decoder_output = np.random.normal(0,1,(1,self.vocab_size_simple)).astype(np.float32)
+        decoder_output = decoder_output.cuda() if self.use_cuda else decoder_output
         decoder_output = torch.from_numpy(decoder_output)
         decoder_output = torch.softmax(decoder_output, -1)
         decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
-        decoder_output = decoder_output.cuda() if self.use_cuda else decoder_output
         return decoder_output
 
     # def to_one_hot(self,idx):
