@@ -358,7 +358,7 @@ class Rephraser:
             word_count = dict()
             for i in range(output_length):
                 decoder_output, decoder_hidden = \
-                    self.decoder(decoder_output, decoder_hidden, cnn_a, cnn_c, input_variable, i, self.vocab_simple)
+                    self.decoder(prev_word, decoder_output, decoder_hidden, cnn_a, cnn_c, input_variable, i, self.vocab_simple)
 
                 topv, topi = decoder_output.data.topk(1)
                 ni = topi[0][0]
@@ -372,6 +372,8 @@ class Rephraser:
                 # one_hot = self.to_one_hot(output_variable[i])
                 out = Variable(torch.LongTensor([output_variable[i]]))
                 out = out.cuda() if self.use_cuda else out
+                print("out : ", out)
+                print("decoder_output : ", decoder_output)
                 loss += self.criterion(decoder_output, out)
 
                 # to feed the RNN step with weighted sum of the embedding matrix
