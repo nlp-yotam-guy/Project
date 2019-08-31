@@ -425,12 +425,11 @@ class Rephraser:
 
             topv, topi = decoder_output.data.topk(1)
             ni = topi[0][0].item()
-            print("ni is: ", ni)
             target_sent.append(self.vocab_simple.id2word[ni])
             prev_word = Variable(torch.LongTensor([[ni]]))
             prev_word = prev_word.cuda() if self.use_cuda else prev_word
             out_length += 1
-            decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
+            #decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
 
 
         orig_sent = word_id_to_sent(sent_pair[0], self.vocab_normal)
