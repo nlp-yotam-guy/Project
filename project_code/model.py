@@ -429,7 +429,7 @@ class Rephraser:
             prev_word = Variable(torch.LongTensor([[ni]]))
             prev_word = prev_word.cuda() if self.use_cuda else prev_word
             out_length += 1
-            decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
+            #decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
 
 
         orig_sent = word_id_to_sent(sent_pair[0], self.vocab_normal)
