@@ -423,6 +423,8 @@ class Rephraser:
                 self.decoder(prev_word, decoder_output, decoder_hidden, cnn_a, cnn_c, input_variable, out_length, self.vocab_simple)
 
             print("dec_out : ", decoder_output)
+            print("dec_out_data: ", decoder_output.data)
+            print("dec_out_topk: ", decoder_output.topk(1))
             topv, topi = decoder_output.data.topk(1)
             ni = topi[0][0].item()
             target_sent.append(self.vocab_simple.id2word[ni])
