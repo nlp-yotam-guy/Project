@@ -323,8 +323,8 @@ class Rephraser:
             input_variable = input_variables[count]
             output_variable = output_variables[count]
 
-            a = [input_variable[k].item() for k in range(len(input_variable))]
-            print([self.vocab_normal.id2word[a[i]] for i in range(len(input_variable))])
+            #a = [input_variable[k].item() for k in range(len(input_variable))]
+            #print([self.vocab_normal.id2word[a[i]] for i in range(len(input_variable))])
             # b = [output_variable[k].item() for k in range(len(output_variable))]
             # print([self.vocab_simple.id2word[b[i]] for i in range(len(output_variable))],'\n')
 
