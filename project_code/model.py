@@ -89,13 +89,12 @@ class AttnDecoder(nn.Module):
         a_i = F.softmax(s_i)
 
         c_i = torch.bmm(a_i.view(1, 1, -1), cnn_c.transpose(1, 2))
-        lstm_output, lstm_h = self.lstm(torch.cat((x, c_i), dim=-1))
+        lstm_output, lstm_h = self.lstm(torch.cat((x, c_i), dim=-1), h_i)
         lstm_h = lstm_h[0].flatten(0, -1)
         lstm_h = lstm_h.reshape((1,1,lstm_h.size()[0]))
         lstm_h = self.transform_lstm_hidden_out(lstm_h)
-
         lstm_hidden = F.dropout(lstm_h[0], self.dropout, self.training)
-        softmax_output = F.softmax(self.dense_o(lstm_hidden[-1]))
+        softmax_output = F.softmax(self.dense_o(lstm_hidden))
         print("softmax_output", softmax_output)
 
         # if pos < len(input_sentence) and input_sentence[pos].item() not in vocab_simple.id2word:
