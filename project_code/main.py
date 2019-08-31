@@ -17,7 +17,7 @@ DROP_PROB = 0.2
 MAX_LEN_OF_SENTENCE = 10
 FILTER_SIZES = (2, 3, 4)
 BATCH_SIZE = 1
-NUM_EPOCHES = 100
+NUM_EPOCHES = 1000
 CONV_LAYERS = 5
 LIMIT_DATA_SIZE = 1000
 LEARNING_RATE = 0.001
@@ -87,13 +87,12 @@ def main():
     eval_set_norm = normal_sents_test[:EVAL_PRINT]
     eval_set_simp = simple_sents_test[:EVAL_PRINT]
 
-    for i in range(min(len(eval_set_norm), len(eval_set_simp))):
-        print(eval_set_norm[i])
-        print(eval_set_simp[i], '\n')
-
     eval_set_norm = sent_to_word_id(eval_set_norm, vocab_normal, MAX_LEN_OF_SENTENCE)
     eval_set_simp = sent_to_word_id(eval_set_simp, vocab_simple, MAX_LEN_OF_SENTENCE)
 
+    for i in range(min(len(eval_set_norm), len(eval_set_simp))):
+        print(eval_set_norm[i])
+        print(eval_set_simp[i], '\n')
 
     for i in range(min(len(eval_set_norm),len(eval_set_simp))):
         model.evaluate((eval_set_norm[i], eval_set_simp[i]))
