@@ -94,7 +94,7 @@ class AttnDecoder(nn.Module):
         lstm_h = lstm_h.reshape((1,1,lstm_h.size()[0]))
         lstm_h = self.transform_lstm_hidden_out(lstm_h)
         lstm_hidden = F.dropout(lstm_h[0], self.dropout, self.training)
-        softmax_output = F.softmax(self.dense_o(lstm_hidden))
+        softmax_output = F.log_softmax(self.dense_o(lstm_hidden))
 
         # if pos < len(input_sentence) and input_sentence[pos].item() not in vocab_simple.id2word:
         #     _, j_star = a_i[0].max(0)
@@ -270,7 +270,7 @@ class Rephraser:
         # training_pairs = list(zip(*(input_dataset, output_dataset)))
 
         training_pairs = [(input_dataset[i],output_dataset[i]) for i in range(len(input_dataset))]
-        #idx = list(range(len(training_pairs)))
+        idx = list(range(len(training_pairs)))
 
         # k = 10
         # for i in range(k):
@@ -284,19 +284,19 @@ class Rephraser:
         # the loss value as the training progresses
 
         for itr in range(1, self.n_epoches + 1):
-            #random.shuffle(idx)
-            #training_pair = self.create_batch(training_pairs,idx)
+            random.shuffle(idx)
+            training_pair = self.create_batch(training_pairs,idx)
             # for instance - training pair[0] is a normal "sentence" with shape
             #  => [107, 655,  68, 106,  11, 656, 455, 657, 158,   1]
-            training_pair = random.sample(training_pairs, k=self.batch_size)
+            # training_pair = random.sample(training_pairs, k=self.batch_size)
 
             # for instance - input variable with shape=> [389, 382, 383,  72, 216, 217, 156, 388,   1]
             # for instance - target variable with shape => [ 35, 115,   4, 958, 959,   8, 961, 962, 963,   1]
             input_variable, target_variable = list(zip(*training_pair))
             # k=10
             # for i in range(k):
-            #     print([self.vocab.id2word[j] for j in input_variable[i]])
-            #     print([self.vocab.id2word[j] for j in target_variable[i]],'\n')
+            #     print([self.vocab_normal.id2word[j.item()] for j in input_variable[i]])
+            #     print([self.vocab_simple.id2word[j.item()] for j in target_variable[i]],'\n')
 
             loss = self.train(input_variable, target_variable)
 
@@ -373,7 +373,7 @@ class Rephraser:
                 loss += self.criterion(decoder_output, out)
 
                 # to feed the RNN step with weighted sum of the embedding matrix
-                decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
+                # decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
 
                 if ni == 1:  # EOS
                     break
@@ -420,9 +420,9 @@ class Rephraser:
         while not ni == 1 and out_length < self.max_len:
             decoder_output, decoder_hidden = \
                 self.decoder(prev_word, decoder_output, decoder_hidden, cnn_a, cnn_c, input_variable, out_length, self.vocab_simple)
-            print("softmax: ", decoder_output)
-            print("top: ", decoder_output.data.topk(1))
-            print(self.vocab_simple.id2word[ni])
+            # print("softmax: ", decoder_output)
+            # print("top: ", decoder_output.data.topk(1))
+            # print(self.vocab_simple.id2word[ni])
             topv, topi = decoder_output.data.topk(1)
             ni = topi[0][0].item()
             target_sent.append(self.vocab_simple.id2word[ni])
