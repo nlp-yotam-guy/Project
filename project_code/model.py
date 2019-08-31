@@ -292,9 +292,8 @@ class Rephraser:
             training_pair = random.sample(training_pairs, k=self.batch_size)
 
             # for instance - input variable => [389, 382, 383,  72, 216, 217, 156, 388,   1]
-            # for instance - target variable => [389, 382, 383,  72, 216, 217, 156, 388,   1]
+            # for instance - target variable => [ 35, 115,   4, 958, 959,   8, 961, 962, 963,   1]
             input_variable, target_variable = list(zip(*training_pair))
-            print("target variable: ", target_variable)
             # k=10
             # for i in range(k):
             #     print([self.vocab.id2word[j] for j in input_variable[i]])
