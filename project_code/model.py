@@ -96,6 +96,7 @@ class AttnDecoder(nn.Module):
 
         lstm_hidden = F.dropout(lstm_h[0], self.dropout, self.training)
         softmax_output = F.softmax(self.dense_o(lstm_hidden))
+        print("softmax_output", softmax_output)
 
         # if pos < len(input_sentence) and input_sentence[pos].item() not in vocab_simple.id2word:
         #     _, j_star = a_i[0].max(0)
@@ -422,9 +423,6 @@ class Rephraser:
             decoder_output, decoder_hidden = \
                 self.decoder(prev_word, decoder_output, decoder_hidden, cnn_a, cnn_c, input_variable, out_length, self.vocab_simple)
 
-            print("dec_out : ", decoder_output)
-            print("dec_out_data: ", decoder_output.data)
-            print("dec_out_topk: ", decoder_output.topk(1))
             topv, topi = decoder_output.data.topk(1)
             ni = topi[0][0].item()
             target_sent.append(self.vocab_simple.id2word[ni])
