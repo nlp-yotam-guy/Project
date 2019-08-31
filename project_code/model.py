@@ -359,7 +359,6 @@ class Rephraser:
                 decoder_output, decoder_hidden = \
                     self.decoder(prev_word, decoder_output, decoder_hidden, cnn_a, cnn_c, input_variable, i,
                                  self.vocab_simple)
-                print("prev word is : ", prev_word)
                 topv, topi = decoder_output.data.topk(1)
                 ni = topi[0][0]
                 # ni = self.get_constrained_id(decoder_output,word_count)
