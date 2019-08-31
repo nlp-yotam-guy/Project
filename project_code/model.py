@@ -252,7 +252,7 @@ class Rephraser:
 
     def get_initial_encoding(self):
         # decoder_output = torch.normal(0.5, 1, (1, self.vocab_size_simple))
-        decoder_output = np.random.normal(0,1,(1,self.vocab_size_simple)).astype(np.float32)
+        decoder_output = np.random.normal(0, 1, (1, self.vocab_size_simple)).astype(np.float32)
         decoder_output = torch.from_numpy(decoder_output)
         decoder_output = torch.softmax(decoder_output, -1)
         decoder_output = decoder_output.cuda() if self.use_cuda else decoder_output
@@ -273,7 +273,6 @@ class Rephraser:
 
         training_pairs = [(input_dataset[i],output_dataset[i]) for i in range(len(input_dataset))]
         #idx = list(range(len(training_pairs)))
-        training_pair = random.sample(training_pairs, k=self.batch_size)
 
         # k = 10
         # for i in range(k):
@@ -289,7 +288,7 @@ class Rephraser:
         for itr in range(1, self.n_epoches + 1):
             #random.shuffle(idx)
             #training_pair = self.create_batch(training_pairs,idx)
-
+            training_pair = random.sample(training_pairs, k=self.batch_size)
             # k=10
             # for i in range(k):
             #     print([self.vocab.id2word[j] for j in training_pair[i][0]])

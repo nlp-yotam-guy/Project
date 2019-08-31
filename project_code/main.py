@@ -83,14 +83,13 @@ def main():
     print('Fitting the model')
     model.trainIters(input_dataset,output_dataset)
     # # test on some training sequences
-    print('Training the model')
 
     eval_set_norm = normal_sents_test[:EVAL_PRINT]
     eval_set_simp = simple_sents_test[:EVAL_PRINT]
 
     for i in range(min(len(eval_set_norm), len(eval_set_simp))):
         print(eval_set_norm[i])
-        print(eval_set_simp[i],'\n')
+        print(eval_set_simp[i], '\n')
 
     eval_set_norm = sent_to_word_id(eval_set_norm, vocab_normal, MAX_LEN_OF_SENTENCE)
     eval_set_simp = sent_to_word_id(eval_set_simp, vocab_simple, MAX_LEN_OF_SENTENCE)
