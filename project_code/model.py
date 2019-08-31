@@ -76,21 +76,21 @@ class AttnDecoder(nn.Module):
 
         self.use_cuda = use_cuda
 
-    def forward(self, g_i, h_i, cnn_a, cnn_c, input_sentence, pos, vocab_simple):
+    def forward(self, y_i, g_i, h_i, cnn_a, cnn_c, input_sentence, pos, vocab_simple):
 
-        # g_i = self.embedding(y_i)
-        shape = [1]+list(g_i.size())
-        g_i = torch.reshape(g_i,shape)
-        g_i = F.dropout(g_i, self.dropout, self.training)
+        x = self.embedding(y_i)
+        #shape = [1]+list(g_i.size())
+        #g_i = torch.reshape(g_i, shape)
+        x = F.dropout(x, self.dropout, self.training)
 
-        d_i = self.transform_lstm_hidden_in(h_i) + g_i
+        d_i = self.transform_lstm_hidden_in(h_i) + x
         # print(d_i.size(), cnn_a.size())
         s_i = torch.bmm(d_i, cnn_a)
         s_i = s_i.view(1, -1)
         a_i = F.softmax(s_i)
 
         c_i = torch.bmm(a_i.view(1, 1, -1), cnn_c.transpose(1, 2))
-        lstm_output, lstm_h = self.lstm(torch.cat((g_i, c_i), dim=-1))
+        lstm_output, lstm_h = self.lstm(torch.cat((x, c_i), dim=-1))
         lstm_h = lstm_h[0].flatten(0, -1)
         lstm_h = lstm_h.reshape((1,1,lstm_h.size()[0]))
         lstm_h = self.transform_lstm_hidden_out(lstm_h)
