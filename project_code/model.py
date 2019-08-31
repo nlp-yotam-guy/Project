@@ -69,7 +69,7 @@ class AttnDecoder(nn.Module):
         self.lstm = nn.LSTM(hidden_size_lstm + embedding_size, hidden_size_lstm,
                             n_layers_lstm, bidirectional=True)
         self.transform_lstm_hidden_in = nn.Linear(hidden_size_lstm, embedding_size)
-        self.transform_lstm_hidden_out = nn.Linear(2*hidden_size_lstm, embedding_size)
+        self.transform_lstm_hidden_out = nn.Linear(hidden_size_lstm, embedding_size)
         self.dense_o = nn.Linear(hidden_size_lstm, output_vocab_size)
 
         self.n_layers_lstm = n_layers_lstm
@@ -323,8 +323,8 @@ class Rephraser:
             input_variable = input_variables[count]
             output_variable = output_variables[count]
 
-            # a = [input_variable[k].item() for k in range(len(input_variable))]
-            # print([self.vocab_normal.id2word[a[i]] for i in range(len(input_variable))])
+            a = [input_variable[k].item() for k in range(len(input_variable))]
+            print([self.vocab_normal.id2word[a[i]] for i in range(len(input_variable))])
             # b = [output_variable[k].item() for k in range(len(output_variable))]
             # print([self.vocab_simple.id2word[b[i]] for i in range(len(output_variable))],'\n')
 
