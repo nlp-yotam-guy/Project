@@ -359,6 +359,7 @@ class Rephraser:
                 decoder_output, decoder_hidden = \
                     self.decoder(prev_word, decoder_output, decoder_hidden, cnn_a, cnn_c, input_variable, i,
                                  self.vocab_simple)
+                print("prev word is : ", prev_word)
                 topv, topi = decoder_output.data.topk(1)
                 ni = topi[0][0]
                 # ni = self.get_constrained_id(decoder_output,word_count)
@@ -367,7 +368,6 @@ class Rephraser:
                     prev_word = Variable(torch.LongTensor([[output_variable[i]]]))
                 else:
                     prev_word = Variable(torch.LongTensor([[ni]]))
-                print("prev word is : ", prev_word)
                 prev_word = prev_word.cuda() if self.use_cuda else prev_word
                 # one_hot = self.to_one_hot(output_variable[i])
                 out = Variable(torch.LongTensor([output_variable[i]]))
