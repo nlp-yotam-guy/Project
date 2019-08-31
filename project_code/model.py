@@ -9,7 +9,7 @@ import random
 
 
 PRINT_PROGRESS = 1
-MAX_EVAL_PRINT = 15
+MAX_EVAL_PRINT = 100
 
 
 class ConvEncoder(nn.Module):
