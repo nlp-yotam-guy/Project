@@ -289,10 +289,7 @@ class Rephraser:
             #random.shuffle(idx)
             #training_pair = self.create_batch(training_pairs,idx)
             training_pair = random.sample(training_pairs, k=self.batch_size)
-            k=10
-            for i in range(k):
-                print([self.vocab.id2word[j] for j in training_pair[i][0]])
-                print([self.vocab.id2word[j] for j in training_pair[i][1]], '\n')
+            print("training pair:", training_pair)
 
             input_variable, target_variable = list(zip(*training_pair))
 
