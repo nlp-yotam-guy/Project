@@ -95,7 +95,7 @@ class AttnDecoder(nn.Module):
         lstm_h = self.transform_lstm_hidden_out(lstm_h)
 
         lstm_hidden = F.dropout(lstm_h[0], self.dropout, self.training)
-        softmax_output = F.softmax(self.dense_o(lstm_hidden))
+        softmax_output = F.softmax(self.dense_o(lstm_hidden[-1]))
         print("softmax_output", softmax_output)
 
         # if pos < len(input_sentence) and input_sentence[pos].item() not in vocab_simple.id2word:
