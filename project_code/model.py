@@ -372,12 +372,10 @@ class Rephraser:
                 # one_hot = self.to_one_hot(output_variable[i])
                 out = Variable(torch.LongTensor([output_variable[i]]))
                 out = out.cuda() if self.use_cuda else out
-                print("out : ", out)
-                print("decoder_output : ", decoder_output)
                 loss += self.criterion(decoder_output, out)
 
                 # to feed the RNN step with weighted sum of the embedding matrix
-                decoder_output = torch.mm(decoder_output,self.embedding_matrix_simple)
+                decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
 
                 if ni == 1:  # EOS
                     break
