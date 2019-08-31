@@ -25,7 +25,7 @@ DATASET_PATH = '../data/'
 ACTIVE_DATASET = 'newsela'
 
 # set to false for quicker run time (good for debugging)
-LOAD_EMBEDDINGS = False
+LOAD_EMBEDDINGS = True
 
 EVAL_PRINT = 20
 
