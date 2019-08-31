@@ -272,8 +272,8 @@ class Rephraser:
         # training_pairs = list(zip(*(input_dataset, output_dataset)))
 
         training_pairs = [(input_dataset[i],output_dataset[i]) for i in range(len(input_dataset))]
-        idx = list(range(len(training_pairs)))
-
+        #idx = list(range(len(training_pairs)))
+        training_pair = random.sample(training_pairs, k=self.batch_size)
 
         # k = 10
         # for i in range(k):
@@ -287,8 +287,8 @@ class Rephraser:
         # the loss value as the training progresses
 
         for itr in range(1, self.n_epoches + 1):
-            random.shuffle(idx)
-            training_pair = self.create_batch(training_pairs,idx)
+            #random.shuffle(idx)
+            #training_pair = self.create_batch(training_pairs,idx)
 
             # k=10
             # for i in range(k):
@@ -390,7 +390,7 @@ class Rephraser:
 
 
     # evaluate the the model
-    def evaluate(self,sent_pair):
+    def evaluate(self, sent_pair):
         self.encoder_a.training = False
         self.encoder_c.training = False
         self.decoder.training = False
@@ -427,6 +427,7 @@ class Rephraser:
 
             topv, topi = decoder_output.data.topk(1)
             ni = topi[0][0].item()
+            print("ni is : ", ni)
             target_sent.append(self.vocab_simple.id2word[ni])
             prev_word = Variable(torch.LongTensor([[ni]]))
             prev_word = prev_word.cuda() if self.use_cuda else prev_word
