@@ -291,8 +291,10 @@ class Rephraser:
             # for instance - training pair[0]  => [107, 655,  68, 106,  11, 656, 455, 657, 158,   1]
             training_pair = random.sample(training_pairs, k=self.batch_size)
 
+            # for instance - input variable => [389, 382, 383,  72, 216, 217, 156, 388,   1]
+            # for instance - target variable => [389, 382, 383,  72, 216, 217, 156, 388,   1]
             input_variable, target_variable = list(zip(*training_pair))
-            print("input variable: ", input_variable)
+            print("target variable: ", target_variable)
             # k=10
             # for i in range(k):
             #     print([self.vocab.id2word[j] for j in input_variable[i]])
@@ -382,7 +384,7 @@ class Rephraser:
         loss.backward()
         self.encoder_a_optimizer.step()
         self.decoder_optimizer.step()
-        return loss.item() / output_length
+        return loss.data[0] / output_length
 
 
     # evaluate the the model
