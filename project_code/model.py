@@ -288,11 +288,11 @@ class Rephraser:
         for itr in range(1, self.n_epoches + 1):
             #random.shuffle(idx)
             #training_pair = self.create_batch(training_pairs,idx)
+            # for instance - training pair[0]  => [107, 655,  68, 106,  11, 656, 455, 657, 158,   1]
             training_pair = random.sample(training_pairs, k=self.batch_size)
-            print("training pair:", training_pair)
 
             input_variable, target_variable = list(zip(*training_pair))
-
+            print("input variable: ", input_variable)
             # k=10
             # for i in range(k):
             #     print([self.vocab.id2word[j] for j in input_variable[i]])
