@@ -87,15 +87,13 @@ def main():
     eval_set_norm = normal_sents_test[:EVAL_PRINT]
     eval_set_simp = simple_sents_test[:EVAL_PRINT]
 
+    # for instance - eval_set_norm[i] is [303, 1485, 158, 24, 47, 1486, 1487, 1]
     eval_set_norm = sent_to_word_id(eval_set_norm, vocab_normal, MAX_LEN_OF_SENTENCE)
     eval_set_simp = sent_to_word_id(eval_set_simp, vocab_simple, MAX_LEN_OF_SENTENCE)
 
-    for i in range(min(len(eval_set_norm), len(eval_set_simp))):
-        print(eval_set_norm[i])
-        print(eval_set_simp[i], '\n')
-
     for i in range(min(len(eval_set_norm),len(eval_set_simp))):
         model.evaluate((eval_set_norm[i], eval_set_simp[i]))
+
 
 if __name__ == '__main__':
     main()
