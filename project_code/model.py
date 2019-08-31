@@ -77,7 +77,6 @@ class AttnDecoder(nn.Module):
         self.use_cuda = use_cuda
 
     def forward(self, y_i, g_i, h_i, cnn_a, cnn_c, input_sentence, pos, vocab_simple):
-        print("word is ", word_id_to_sent(y_i.item(), vocab_simple))
         x = self.embedding(y_i)
         #shape = [1]+list(g_i.size())
         #g_i = torch.reshape(g_i, shape)
@@ -288,11 +287,12 @@ class Rephraser:
         for itr in range(1, self.n_epoches + 1):
             #random.shuffle(idx)
             #training_pair = self.create_batch(training_pairs,idx)
-            # for instance - training pair[0]  => [107, 655,  68, 106,  11, 656, 455, 657, 158,   1]
+            # for instance - training pair[0] is a normal "sentence" with shape
+            #  => [107, 655,  68, 106,  11, 656, 455, 657, 158,   1]
             training_pair = random.sample(training_pairs, k=self.batch_size)
 
-            # for instance - input variable => [389, 382, 383,  72, 216, 217, 156, 388,   1]
-            # for instance - target variable => [ 35, 115,   4, 958, 959,   8, 961, 962, 963,   1]
+            # for instance - input variable with shape=> [389, 382, 383,  72, 216, 217, 156, 388,   1]
+            # for instance - target variable with shape => [ 35, 115,   4, 958, 959,   8, 961, 962, 963,   1]
             input_variable, target_variable = list(zip(*training_pair))
             # k=10
             # for i in range(k):
@@ -359,7 +359,6 @@ class Rephraser:
                 decoder_output, decoder_hidden = \
                     self.decoder(prev_word, decoder_output, decoder_hidden, cnn_a, cnn_c, input_variable, i,
                                  self.vocab_simple)
-
                 topv, topi = decoder_output.data.topk(1)
                 ni = topi[0][0]
                 # ni = self.get_constrained_id(decoder_output,word_count)
@@ -368,6 +367,7 @@ class Rephraser:
                     prev_word = Variable(torch.LongTensor([[output_variable[i]]]))
                 else:
                     prev_word = Variable(torch.LongTensor([[ni]]))
+                print("prev word is : ", prev_word)
                 prev_word = prev_word.cuda() if self.use_cuda else prev_word
                 # one_hot = self.to_one_hot(output_variable[i])
                 out = Variable(torch.LongTensor([output_variable[i]]))
