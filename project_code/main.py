@@ -16,8 +16,8 @@ HIDDEN_SIZE = 512
 DROP_PROB = 0.2
 MAX_LEN_OF_SENTENCE = 10
 FILTER_SIZES = (2, 3, 4)
-BATCH_SIZE = 100
-NUM_EPOCHES = 1000
+BATCH_SIZE = 32
+NUM_EPOCHES = 100
 CONV_LAYERS = 5
 LIMIT_DATA_SIZE = 1000
 LEARNING_RATE = 0.0001
@@ -27,7 +27,7 @@ ACTIVE_DATASET = 'newsela'
 # set to false for quicker run time (good for debugging)
 LOAD_EMBEDDINGS = False
 
-EVAL_PRINT = 100
+EVAL_PRINT = 20
 
 
 def main():
