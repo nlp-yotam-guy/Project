@@ -89,7 +89,7 @@ class AttnDecoder(nn.Module):
         a_i = F.softmax(s_i)
 
         c_i = torch.bmm(a_i.view(1, 1, -1), cnn_c.transpose(1, 2))
-        lstm_output, lstm_h = self.lstm(torch.cat((x, c_i), dim=-1), h_i)
+        lstm_output, lstm_h = self.lstm(torch.cat((x, c_i), dim=-1))
         lstm_h = lstm_h[0].flatten(0, -1)
         lstm_h = lstm_h.reshape((1,1,lstm_h.size()[0]))
         lstm_h = self.transform_lstm_hidden_out(lstm_h)
