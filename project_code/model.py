@@ -427,7 +427,7 @@ class Rephraser:
 
             topv, topi = decoder_output.data.topk(1)
             ni = topi[0][0].item()
-            print("ni is : ", ni)
+            print("ni is: ", ni)
             target_sent.append(self.vocab_simple.id2word[ni])
             prev_word = Variable(torch.LongTensor([[ni]]))
             prev_word = prev_word.cuda() if self.use_cuda else prev_word
