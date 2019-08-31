@@ -418,13 +418,13 @@ class Rephraser:
         ni = 0
         out_length = 0
         word_count = dict()
+        print("max : ", self.max_len)
         while not ni == 1 and out_length < self.max_len:
             decoder_output, decoder_hidden = \
                 self.decoder(prev_word, decoder_output, decoder_hidden, cnn_a, cnn_c, input_variable, out_length, self.vocab_simple)
 
             topv, topi = decoder_output.data.topk(1)
             ni = topi[0][0].item()
-            print("ni is:", ni)
             target_sent.append(self.vocab_simple.id2word[ni])
             prev_word = Variable(torch.LongTensor([[ni]]))
             prev_word = prev_word.cuda() if self.use_cuda else prev_word
