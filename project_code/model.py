@@ -357,7 +357,8 @@ class Rephraser:
             word_count = dict()
             for i in range(output_length):
                 decoder_output, decoder_hidden = \
-                    self.decoder(prev_word, decoder_output, decoder_hidden, cnn_a, cnn_c, input_variable, i, self.vocab_simple)
+                    self.decoder(prev_word, decoder_output, decoder_hidden, cnn_a, cnn_c, input_variable, i,
+                                 self.vocab_simple)
 
                 topv, topi = decoder_output.data.topk(1)
                 ni = topi[0][0]
@@ -409,8 +410,8 @@ class Rephraser:
         cnn_a = cnn_a.cuda() if self.use_cuda else cnn_a
         cnn_c = cnn_c.cuda() if self.use_cuda else cnn_c
 
-        # prev_word = Variable(torch.LongTensor([[0]]))  # SOS
-        # prev_word = prev_word.cuda() if self.use_cuda else prev_word
+        prev_word = Variable(torch.LongTensor([[0]]))  # SOS
+        prev_word = prev_word.cuda() if self.use_cuda else prev_word
 
         decoder_output = self.get_initial_encoding()
         decoder_hidden = self.decoder.initHidden()
@@ -420,7 +421,7 @@ class Rephraser:
         word_count = dict()
         while not ni == 1 and out_length < self.max_len:
             decoder_output, decoder_hidden = \
-                self.decoder(decoder_output, decoder_hidden, cnn_a, cnn_c, input_variable, out_length, self.vocab_simple)
+                self.decoder(prev_word, decoder_output, decoder_hidden, cnn_a, cnn_c, input_variable, out_length, self.vocab_simple)
 
             topv, topi = decoder_output.data.topk(1)
             ni = topi[0][0].item()
