@@ -69,7 +69,7 @@ class AttnDecoder(nn.Module):
         self.lstm = nn.LSTM(hidden_size_lstm + embedding_size, hidden_size_lstm,
                             n_layers_lstm, bidirectional=True)
         self.transform_lstm_hidden_in = nn.Linear(hidden_size_lstm, embedding_size)
-        self.transform_lstm_hidden_out = nn.Linear(hidden_size_lstm, embedding_size)
+        self.transform_lstm_hidden_out = nn.Linear(2*hidden_size_lstm, embedding_size)
         self.dense_o = nn.Linear(hidden_size_lstm, output_vocab_size)
 
         self.n_layers_lstm = n_layers_lstm

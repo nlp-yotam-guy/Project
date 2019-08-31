@@ -27,7 +27,7 @@ ACTIVE_DATASET = 'newsela'
 # set to false for quicker run time (good for debugging)
 LOAD_EMBEDDINGS = False
 
-EVAL_PRINT = 20
+EVAL_PRINT = 100
 
 
 def main():
