@@ -77,7 +77,7 @@ class AttnDecoder(nn.Module):
         self.use_cuda = use_cuda
 
     def forward(self, y_i, g_i, h_i, cnn_a, cnn_c, input_sentence, pos, vocab_simple):
-
+        print("word is ", y_i)
         x = self.embedding(y_i)
         #shape = [1]+list(g_i.size())
         #g_i = torch.reshape(g_i, shape)
