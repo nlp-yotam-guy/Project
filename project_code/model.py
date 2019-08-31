@@ -384,7 +384,7 @@ class Rephraser:
         loss.backward()
         self.encoder_a_optimizer.step()
         self.decoder_optimizer.step()
-        return loss.data[0] / output_length
+        return loss.item() / output_length
 
 
     # evaluate the the model
