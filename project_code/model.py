@@ -53,7 +53,7 @@ class ConvEncoder(nn.Module):
 class AttnDecoder(nn.Module):
 
     def __init__(self, output_vocab_size, word_freq, use_cuda, dropout=0.2, hidden_size_lstm=128,
-                 cnn_size=128, attn_size=128, n_layers_lstm=1,
+                 cnn_size=128, attn_size=128, n_layers_lstm=4,
                  embedding_size=128):
 
         super(AttnDecoder, self).__init__()
@@ -81,7 +81,6 @@ class AttnDecoder(nn.Module):
         #shape = [1]+list(g_i.size())
         #g_i = torch.reshape(g_i, shape)
         x = F.dropout(x, self.dropout, self.training)
-
         d_i = self.transform_lstm_hidden_in(h_i) + x
         # print(d_i.size(), cnn_a.size())
         s_i = torch.bmm(d_i, cnn_a)
@@ -90,11 +89,11 @@ class AttnDecoder(nn.Module):
 
         c_i = torch.bmm(a_i.view(1, 1, -1), cnn_c.transpose(1, 2))
         lstm_output, lstm_h = self.lstm(torch.cat((x, c_i), dim=-1))
-        lstm_h = lstm_h[0].flatten(0, -1)
-        lstm_h = lstm_h.reshape((1,1,lstm_h.size()[0]))
-        lstm_h = self.transform_lstm_hidden_out(lstm_h)
-        lstm_hidden = F.dropout(lstm_h[0], self.dropout, self.training)
-        softmax_output = F.log_softmax(self.dense_o(lstm_hidden))
+        lstm_h = lstm_h[0][-1]
+        # lstm_h = lstm_h.reshape((1,1,lstm_h.size()[0]))
+        # lstm_h = self.transform_lstm_hidden_out(lstm_h)
+        lstm_hidden = F.dropout(lstm_h, self.dropout, self.training)
+        softmax_output = F.log_softmax(self.dense_o(lstm_hidden)).view(1,-1)
 
         # if pos < len(input_sentence) and input_sentence[pos].item() not in vocab_simple.id2word:
         #     _, j_star = a_i[0].max(0)
@@ -355,11 +354,12 @@ class Rephraser:
 
             word_count = dict()
             for i in range(output_length):
+                decoder_hidden = decoder_hidden[-1].view(1,1,-1)
                 decoder_output, decoder_hidden = \
                     self.decoder(prev_word, decoder_output, decoder_hidden, cnn_a, cnn_c, input_variable, i,
                                  self.vocab_simple)
                 topv, topi = decoder_output.data.topk(1)
-                ni = topi[0][0]
+                ni = topi[0].item()
                 # ni = self.get_constrained_id(decoder_output,word_count)
 
                 if use_teacher_forcing:
