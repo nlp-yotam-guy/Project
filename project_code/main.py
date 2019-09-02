@@ -1,6 +1,5 @@
 # choose GPU
 import os
-import torch.multiprocessing as mp
 #os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 #os.environ["CUDA_VISIBLE_DEVICES"]="6"
 
@@ -80,18 +79,9 @@ def main():
                       BATCH_SIZE, NUM_EPOCHES, vocab_normal, vocab_simple,
                       voc_size_normal, voc_size_simple, word_freq, CONV_LAYERS, LEARNING_RATE, use_cuda,
                       embedding_matrix=(embedding_matrix_normal,embedding_matrix_simple))
-
-    model.share_memory()  # Required for 'fork' method to work
-    processes = []
-    print('Fitting the model')
-    for i in range(4):  # No. of processes
-        p = mp.Process(target=model.trainIters, args=(model,))
-        p.start()
-        processes.append(p)
-    for p in processes: p.join()
     #plot_model(model, to_file='model.png', show_shapes=True)
     print('Fitting the model')
-    #model.trainIters(input_dataset,output_dataset,print_every=1)
+    model.trainIters(input_dataset,output_dataset,print_every=1)
     # # test on some training sequences
 
     # eval_set_norm = normal_sents_test[:EVAL_PRINT]

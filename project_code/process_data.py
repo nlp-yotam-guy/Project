@@ -113,8 +113,8 @@ def load_newsela(newsela, limit_sent_len=-1, limit_data=-1):
             continue
         normal_sent = splited_line[-2]
         normal_sent = normalizeString(normal_sent).split(' ')
-        if len(normal_sent) > limit_sent_len:
-            continue
+        # if len(normal_sent) > limit_sent_len:
+        #     continue
         if normal_sent[-1] != '.':
             normal_sent.append('.')
         simple_sent = splited_line[-1]
