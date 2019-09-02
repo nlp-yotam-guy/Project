@@ -1,5 +1,6 @@
 # choose GPU
 import os
+import torch.multiprocessing as mp
 #os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 #os.environ["CUDA_VISIBLE_DEVICES"]="6"
 
@@ -14,12 +15,12 @@ VALIDATION_SPLIT = 0.33
 EMBEDDING_DIM = 100
 HIDDEN_SIZE = 512
 DROP_PROB = 0.2
-MAX_LEN_OF_SENTENCE = 20
+MAX_LEN_OF_SENTENCE = 10
 FILTER_SIZES = (2, 3, 4)
 BATCH_SIZE = 256
-NUM_EPOCHES = 100
+NUM_EPOCHES = 200000
 CONV_LAYERS = 5
-LIMIT_DATA_SIZE = 100000
+LIMIT_DATA_SIZE = 10000
 LEARNING_RATE = 0.0001
 DATASET_PATH = '../data/'
 ACTIVE_DATASET = 'newsela'
@@ -79,9 +80,18 @@ def main():
                       BATCH_SIZE, NUM_EPOCHES, vocab_normal, vocab_simple,
                       voc_size_normal, voc_size_simple, word_freq, CONV_LAYERS, LEARNING_RATE, use_cuda,
                       embedding_matrix=(embedding_matrix_normal,embedding_matrix_simple))
+
+    model.share_memory()  # Required for 'fork' method to work
+    processes = []
+    print('Fitting the model')
+    for i in range(4):  # No. of processes
+        p = mp.Process(target=model.trainIters, args=(model,))
+        p.start()
+        processes.append(p)
+    for p in processes: p.join()
     #plot_model(model, to_file='model.png', show_shapes=True)
     print('Fitting the model')
-    model.trainIters(input_dataset,output_dataset,print_every=1)
+    #model.trainIters(input_dataset,output_dataset,print_every=1)
     # # test on some training sequences
 
     # eval_set_norm = normal_sents_test[:EVAL_PRINT]
