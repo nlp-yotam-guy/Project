@@ -298,8 +298,13 @@ class Rephraser:
             #     print([self.vocab_simple.id2word[j.item()] for j in target_variable[i]],'\n')
 
             loss = self.train(input_variable, target_variable)
-
+            state = {
+                'epoch': itr,
+                'loss': loss,
+            }
+            torch.save(state, 'Model_epochs')
             print_loss_total += loss
+
             if itr % print_every == 0:
                 print_loss_avg = print_loss_total / print_every
                 print(print_loss_avg)
