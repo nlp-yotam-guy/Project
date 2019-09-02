@@ -300,7 +300,6 @@ class Rephraser:
             loss = self.train(input_variable, target_variable)
 
             print_loss_total += loss
-
             if itr % print_every == 0:
                 print_loss_avg = print_loss_total / print_every
                 print(print_loss_avg)

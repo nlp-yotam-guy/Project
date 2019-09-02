@@ -82,6 +82,9 @@ def main():
     #plot_model(model, to_file='model.png', show_shapes=True)
     print('Fitting the model')
     model.trainIters(input_dataset,output_dataset,print_every=1)
+    print('Done fitting')
+    print('Saving the model')
+    torch.save(model, 'Full_Model.pth')
     # # test on some training sequences
 
     # eval_set_norm = normal_sents_test[:EVAL_PRINT]
