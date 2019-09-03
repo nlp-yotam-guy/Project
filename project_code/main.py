@@ -12,12 +12,12 @@ import random
 
 VALIDATION_SPLIT = 0.33
 EMBEDDING_DIM = 100
-HIDDEN_SIZE = 512
+HIDDEN_SIZE = 256
 DROP_PROB = 0.2
-MAX_LEN_OF_SENTENCE = 10
+MAX_LEN_OF_SENTENCE = 5
 FILTER_SIZES = (2, 3, 4)
 BATCH_SIZE = 256
-NUM_EPOCHES = 200000
+NUM_EPOCHES = 100000
 CONV_LAYERS = 5
 LIMIT_DATA_SIZE = -1
 LEARNING_RATE = 0.0001
@@ -27,7 +27,7 @@ ACTIVE_DATASET = 'newsela'
 # set to false for quicker run time (good for debugging)
 LOAD_EMBEDDINGS = True
 
-EVAL_PRINT = 20
+EVAL_PRINT = 200
 
 
 def main():
@@ -81,7 +81,7 @@ def main():
                       embedding_matrix=(embedding_matrix_normal,embedding_matrix_simple))
     #plot_model(model, to_file='model.png', show_shapes=True)
     print('Fitting the model')
-    model.trainIters(input_dataset,output_dataset,print_every=1)
+    model.trainIters(input_dataset,output_dataset,print_every=100)
     print('Done fitting')
     print('Saving the model')
     torch.save(model, 'Full_Model.pth')

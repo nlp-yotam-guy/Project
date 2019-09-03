@@ -302,16 +302,16 @@ class Rephraser:
                 'epoch': itr,
                 'loss': loss,
             }
-            torch.save(state, 'Model_epochs')
+            torch.save(state, 'Model_epochs_256_100000')
             print_loss_total += loss
 
             if itr % print_every == 0:
                 print_loss_avg = print_loss_total / print_every
-                print(print_loss_avg)
+                print(itr, print_loss_avg)
                 print_loss_total = 0
         print("Training Completed")
 
-    def train(self,input_variables, output_variables):
+    def train(self, input_variables, output_variables):
 
         # Initialize the gradients to zero
         self.encoder_a_optimizer.zero_grad()
