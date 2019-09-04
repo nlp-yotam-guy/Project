@@ -1,23 +1,24 @@
 # choose GPU
 import os
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
-os.environ["CUDA_VISIBLE_DEVICES"]="6"
+# os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
+# os.environ["CUDA_VISIBLE_DEVICES"]="6"
 
 import sys
 from process_data import *
 from model import *
 
-VALIDATION_SPLIT = 0.33
+VALIDATION_SPLIT = 0.2
 EMBEDDING_DIM = 100
 HIDDEN_SIZE = EMBEDDING_DIM
 DROP_PROB = 0.2
-MAX_LEN_OF_SENTENCE = 50
+MAX_LEN_OF_SENTENCE = 10
 FILTER_SIZES = (2, 3, 4)
-BATCH_SIZE = 32
+BATCH_SIZE = 1024
 NUM_EPOCHES = 10
 LIMIT_DATA_SIZE = 10000
 DATASET_PATH = '../data/'
-ACTIVE_DATASET = 'wiki'
+ACTIVE_DATASET = 'newsela'
+EVAL_PRINT = 20
 
 
 
@@ -61,6 +62,10 @@ def main():
     print('Training the model')
 
     eval_set = normal_sents_train[:EVAL_PRINT]
+    eval_set = encode_sequences(tokenizer, MAX_LEN_OF_SENTENCE, eval_set)
+    model.evaluate(tokenizer, eval_set, normal_sents_orig, simple_sents_orig)
+
+    eval_set = normal_sents_test[:EVAL_PRINT]
     eval_set = encode_sequences(tokenizer, MAX_LEN_OF_SENTENCE, eval_set)
     model.evaluate(tokenizer, eval_set, normal_sents_orig, simple_sents_orig)
 
