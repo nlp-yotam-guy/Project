@@ -1,0 +1,139 @@
+\begin{thebibliography}{16}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Beigman~Klebanov et~al.(2004)Beigman~Klebanov, Knight, and
+  Marcu]{10.1007/978-3-540-30468-5_47}
+Beigman~Klebanov, B., Knight, K., and Marcu, D.
+\newblock Text simplification for information-seeking applications.
+\newblock In Meersman, R. and Tari, Z. (eds.), \emph{On the Move to Meaningful
+  Internet Systems 2004: CoopIS, DOA, and ODBASE}, pp.\  735--747, Berlin,
+  Heidelberg, 2004. Springer Berlin Heidelberg.
+\newblock ISBN 978-3-540-30468-5.
+
+\bibitem[Carroll et~al.(1999)Carroll, Minnen, Pearce, Canning, Devlin, and
+  Tait]{Carroll99simplifyingtext}
+Carroll, J., Minnen, G., Pearce, D., Canning, Y., Devlin, S., and Tait, J.
+\newblock Simplifying text for language-impaired readers.
+\newblock In \emph{In Proceedings of the 9th Conference of the European Chapter
+  of the Association for Computational Linguistics (EACL}, pp.\  269--270,
+  1999.
+
+\bibitem[Chandrasekar et~al.(1996)Chandrasekar, Doran, and
+  Srinivas]{Chandrasekar:1996:MMT:993268.993361}
+Chandrasekar, R., Doran, C., and Srinivas, B.
+\newblock Motivations and methods for text simplification.
+\newblock In \emph{Proceedings of the 16th Conference on Computational
+  Linguistics - Volume 2}, COLING '96, pp.\  1041--1044, Stroudsburg, PA, USA,
+  1996. Association for Computational Linguistics.
+\newblock \doi{10.3115/993268.993361}.
+\newblock URL \url{https://doi.org/10.3115/993268.993361}.
+
+\bibitem[Coster \& Kauchak(2011)Coster and Kauchak]{coster-kauchak-2011-simple}
+Coster, W. and Kauchak, D.
+\newblock Simple {E}nglish {W}ikipedia: A new text simplification task.
+\newblock In \emph{Proceedings of the 49th Annual Meeting of the Association
+  for Computational Linguistics: Human Language Technologies}, pp.\  665--669,
+  Portland, Oregon, USA, June 2011. Association for Computational Linguistics.
+\newblock URL \url{https://www.aclweb.org/anthology/P11-2117}.
+
+\bibitem[Di~Palo \& Parde(2019)Di~Palo and Parde]{di2019enriching}
+Di~Palo, F. and Parde, N.
+\newblock Enriching neural models with targeted features for dementia
+  detection.
+\newblock \emph{arXiv preprint arXiv:1906.05483}, 2019.
+
+\bibitem[Gehring et~al.(2016)Gehring, Auli, Grangier, and
+  Dauphin]{DBLP:journals/corr/GehringAGD16}
+Gehring, J., Auli, M., Grangier, D., and Dauphin, Y.~N.
+\newblock A convolutional encoder model for neural machine translation.
+\newblock \emph{CoRR}, abs/1611.02344, 2016.
+\newblock URL \url{http://arxiv.org/abs/1611.02344}.
+
+\bibitem[Hochreiter \& Schmidhuber(1997)Hochreiter and
+  Schmidhuber]{hochreiter1997lstm}
+Hochreiter, S. and Schmidhuber, J.
+\newblock Lstm can solve hard long time lag problems.
+\newblock In \emph{Advances in neural information processing systems}, pp.\
+  473--479, 1997.
+
+\bibitem[Koehn et~al.(2007)Koehn, Hoang, Birch, Callison-Burch, Federico,
+  Bertoldi, Cowan, Shen, Moran, Zens, Dyer, Bojar, Constantin, and
+  Herbst]{koehn-etal-2007-moses}
+Koehn, P., Hoang, H., Birch, A., Callison-Burch, C., Federico, M., Bertoldi,
+  N., Cowan, B., Shen, W., Moran, C., Zens, R., Dyer, C., Bojar, O.,
+  Constantin, A., and Herbst, E.
+\newblock {M}oses: Open source toolkit for statistical machine translation.
+\newblock In \emph{Proceedings of the 45th Annual Meeting of the Association
+  for Computational Linguistics Companion Volume Proceedings of the Demo and
+  Poster Sessions}, pp.\  177--180, Prague, Czech Republic, June 2007.
+  Association for Computational Linguistics.
+\newblock URL \url{https://www.aclweb.org/anthology/P07-2045}.
+
+\bibitem[Meng et~al.(2015)Meng, Lu, Wang, Li, Jiang, and Liu]{meng2015encoding}
+Meng, F., Lu, Z., Wang, M., Li, H., Jiang, W., and Liu, Q.
+\newblock Encoding source language with convolutional neural network for
+  machine translation.
+\newblock \emph{arXiv preprint arXiv:1503.01838}, 2015.
+
+\bibitem[Niklaus et~al.(2017)Niklaus, Bermeitinger, Handschuh, and
+  Freitas]{niklaus2017sentence}
+Niklaus, C., Bermeitinger, B., Handschuh, S., and Freitas, A.
+\newblock A sentence simplification system for improving relation extraction.
+\newblock \emph{arXiv preprint arXiv:1703.09013}, 2017.
+
+\bibitem[Pennington et~al.(2014)Pennington, Socher, and
+  Manning]{pennington2014glove}
+Pennington, J., Socher, R., and Manning, C.~D.
+\newblock Glove: Global vectors for word representation.
+\newblock In \emph{Empirical Methods in Natural Language Processing (EMNLP)},
+  pp.\  1532--1543, 2014.
+\newblock URL \url{http://www.aclweb.org/anthology/D14-1162}.
+
+\bibitem[Specia(2010)]{10.1007/978-3-642-12320-7_5}
+Specia, L.
+\newblock Translating from complex to simplified sentences.
+\newblock In Pardo, T. A.~S., Branco, A., Klautau, A., Vieira, R., and de~Lima,
+  V. L.~S. (eds.), \emph{Computational Processing of the Portuguese Language},
+  pp.\  30--39, Berlin, Heidelberg, 2010. Springer Berlin Heidelberg.
+\newblock ISBN 978-3-642-12320-7.
+
+\bibitem[Wang et~al.(2016)Wang, Chen, Rochford, and Qiang]{wang2016text}
+Wang, T., Chen, P., Rochford, J., and Qiang, J.
+\newblock Text simplification using neural machine translation.
+\newblock In \emph{Thirtieth AAAI Conference on Artificial Intelligence}, 2016.
+
+\bibitem[Wu et~al.(2016)Wu, Schuster, Chen, Le, Norouzi, Macherey, Krikun, Cao,
+  Gao, Macherey, Klingner, Shah, Johnson, Liu, Kaiser, Gouws, Kato, Kudo,
+  Kazawa, Stevens, Kurian, Patil, Wang, Young, Smith, Riesa, Rudnick, Vinyals,
+  Corrado, Hughes, and Dean]{DBLP:journals/corr/WuSCLNMKCGMKSJL16}
+Wu, Y., Schuster, M., Chen, Z., Le, Q.~V., Norouzi, M., Macherey, W., Krikun,
+  M., Cao, Y., Gao, Q., Macherey, K., Klingner, J., Shah, A., Johnson, M., Liu,
+  X., Kaiser, L., Gouws, S., Kato, Y., Kudo, T., Kazawa, H., Stevens, K.,
+  Kurian, G., Patil, N., Wang, W., Young, C., Smith, J., Riesa, J., Rudnick,
+  A., Vinyals, O., Corrado, G., Hughes, M., and Dean, J.
+\newblock Google's neural machine translation system: Bridging the gap between
+  human and machine translation.
+\newblock \emph{CoRR}, abs/1609.08144, 2016.
+\newblock URL \url{http://arxiv.org/abs/1609.08144}.
+
+\bibitem[Xu et~al.(2015)Xu, Callison-Burch, and Napoles]{Xu-EtAl:2015:TACL}
+Xu, W., Callison-Burch, C., and Napoles, C.
+\newblock Problems in current text simplification research: New data can help.
+\newblock \emph{Transactions of the Association for Computational Linguistics},
+  3:\penalty0 283--297, 2015.
+\newblock URL
+  \url{https://tacl2013.cs.columbia.edu/ojs/index.php/tacl/article/view/549/131.pdf}.
+
+\bibitem[Zhang et~al.(2017)Zhang, Ye, Feng, Zhao, and
+  Yan]{DBLP:journals/corr/ZhangYFZY17}
+Zhang, Y., Ye, Z., Feng, Y., Zhao, D., and Yan, R.
+\newblock A constrained sequence-to-sequence neural model for sentence
+  simplification.
+\newblock \emph{CoRR}, abs/1704.02312, 2017.
+\newblock URL \url{http://arxiv.org/abs/1704.02312}.
+
+\end{thebibliography}
