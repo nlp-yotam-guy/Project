@@ -6,6 +6,8 @@ import os
 import sys
 from process_data import *
 from model import *
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 VALIDATION_SPLIT = 0.2
