@@ -53,7 +53,7 @@ class Rephraser:
         model.compile(loss='sparse_categorical_crossentropy',
                       optimizer=Adam(learning_rate),
                       metrics=['accuracy'])
-        return model
+        self.model = model
 
     def define_dementia(self):
         deep_inputs = Input(shape=(self.max_input_len,))
