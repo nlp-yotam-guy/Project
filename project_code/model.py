@@ -45,12 +45,18 @@ class Rephraser:
         learning_rate = 1e-3
 
         input_seq = Input((self.max_input_len,))
-        emb = Embedding(self.vocab_size, self.embed_dim)(input_seq)
-        bdrnn = Bidirectional(LSTM(self.embed_dim, return_sequences=True))(emb)
-        logits = TimeDistributed(Dense(self.vocab_size, activation='softmax'))(bdrnn)
+        emb = Embedding(self.vocab_size,
+                        self.embed_dim,
+                        weights=[self.embedding_matrix],
+                        trainable=False,
+                        input_length=self.max_input_len)(input_seq)
+        encoder = Bidirectional(LSTM(self.embed_dim))(emb)
+        decoder = RepeatVector(self.max_output_len)(encoder)
+        decoder = Bidirectional(LSTM(self.embed_dim,return_sequences=True))(decoder)
+        logits = TimeDistributed(Dense(self.vocab_size, activation='softmax'))(decoder)
 
         model = Model(inputs=input_seq, outputs=logits)
-        model.compile(loss='sparse_categorical_crossentropy',
+        model.compile(loss='categorical_crossentropy',
                       optimizer=Adam(learning_rate),
                       metrics=['accuracy'])
         self.model = model

@@ -35,7 +35,7 @@ class Batch_Generator(Sequence):
         train_simple = encode_sequences(self.tokenizer, self.max_len_simple, batch_y)
         train_simple = encode_output(train_simple, len(self.tokenizer.word_index) + 1)
 
-        return np.array(train_normal), np.array(train_simple)
+        return train_normal, train_simple
 
 
 def load_wiki(wiki_normal, wiki_simple, limit_sent_len=-1, limit_data=-1):
