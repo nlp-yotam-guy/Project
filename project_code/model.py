@@ -44,7 +44,7 @@ class Rephraser:
     def define(self):
         learning_rate = 1e-3
 
-        input_seq = Input((self.vocab_size,))
+        input_seq = Input((self.max_input_len,))
         emb = Embedding(self.vocab_size, self.embed_dim)(input_seq)
         bdrnn = Bidirectional(LSTM(self.embed_dim, return_sequences=True))(emb)
         logits = TimeDistributed(Dense(self.vocab_size, activation='softmax'))(bdrnn)
