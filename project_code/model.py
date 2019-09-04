@@ -137,7 +137,8 @@ class Rephraser:
         self.model = full_model
 
     def train(self,generator,validation_split):
-        self.model.fit_generator(generator, epochs=self.n_epoches, verbose=PRINT_PROGRESS)
+        history = self.model.fit_generator(generator, epochs=self.n_epoches, verbose=PRINT_PROGRESS)
+        return history
 
 
     # simplify a given sentence

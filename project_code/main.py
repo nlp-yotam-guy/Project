@@ -6,6 +6,7 @@ import os
 import sys
 from process_data import *
 from model import *
+import matplotlib.pyplot as plt
 
 VALIDATION_SPLIT = 0.2
 EMBEDDING_DIM = 100
@@ -14,7 +15,7 @@ DROP_PROB = 0.2
 MAX_LEN_OF_SENTENCE = 10
 FILTER_SIZES = (2, 3, 4)
 BATCH_SIZE = 1024
-NUM_EPOCHES = 10
+NUM_EPOCHES = 1
 LIMIT_DATA_SIZE = 10000
 DATASET_PATH = '../data/'
 ACTIVE_DATASET = 'newsela'
@@ -57,7 +58,7 @@ def main():
                       len(tokenizer.word_index) + 1, embedding_matrix)
     #plot_model(model, to_file='model.png', show_shapes=True)
     print('Fitting the model')
-    model.train(train_generator, VALIDATION_SPLIT)
+    history = model.train(train_generator, VALIDATION_SPLIT)
     # # test on some training sequences
     print('Training the model')
 
@@ -68,6 +69,25 @@ def main():
     eval_set = normal_sents_test[:EVAL_PRINT]
     eval_set = encode_sequences(tokenizer, MAX_LEN_OF_SENTENCE, eval_set)
     model.evaluate(tokenizer, eval_set, normal_sents_orig, simple_sents_orig)
+
+    # summarize history for accuracy
+    plt.plot(history.history['acc'])
+    plt.plot(history.history['val_acc'])
+    plt.title('model accuracy')
+    plt.ylabel('accuracy')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    #plt.show()
+    plt.savefig('accuracy,png')
+    # summarize history for loss
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('model loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    #plt.show()
+    plt.savefig('loss.png')
 
 if __name__ == '__main__':
     main()
