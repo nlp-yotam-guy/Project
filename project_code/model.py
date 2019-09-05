@@ -184,7 +184,7 @@ class Rephraser:
     def define(self):
         self.encoder_a = ConvEncoder(self.vocab_size_normal, self.embedding_matrix_normal, self.embed_dim, self.max_len, dropout=self.drop_prob,
                                 num_channels_attn=self.hidden_size, num_channels_conv=self.hidden_size,
-                                num_layers=self.n_conv_layers)
+                                num_layers=3*self.n_conv_layers)
         self.encoder_c = ConvEncoder(self.vocab_size_normal, self.embedding_matrix_normal, self.embed_dim, self.max_len, dropout=self.drop_prob,
                                 num_channels_attn=self.hidden_size, num_channels_conv=self.hidden_size,
                                 num_layers=self.n_conv_layers)
@@ -263,6 +263,19 @@ class Rephraser:
     #     vec = vec.cuda() if self.use_cuda else vec
     #     return vec
 
+
+    def save_model(self, iter, loss):
+        torch.save({
+            'iter': iter,
+            'encoder_a_state_dict': self.encoder_a.state_dict(),
+            'encoder_c_state_dict': self.encoder_c.state_dict(),
+            'decoder_state_dict': self.decoder.state_dict(),
+            'encoder_a_optimizer': self.encoder_a_optimizer.state_dict(),
+            'encoder_c_optimizer': self.encoder_c_optimizer.state_dict(),
+            'decoder_optimizer': self.decoder_optimizer.state_dict(),
+            'loss': loss
+            }, 'saved_model_weights')
+
     def trainIters(self, input_dataset, output_dataset, print_every=100):
 
         # Sample a training pair
@@ -298,17 +311,10 @@ class Rephraser:
             #     print([self.vocab_simple.id2word[j.item()] for j in target_variable[i]],'\n')
 
             loss = self.train(input_variable, target_variable)
-            state = {
-                'epoch': itr,
-                'loss': loss,
-            }
-            torch.save(state, 'Model_epochs_256_100000')
-            print_loss_total += loss
 
             if itr % print_every == 0:
-                print_loss_avg = print_loss_total / print_every
-                print(itr, print_loss_avg)
-                print_loss_total = 0
+                print(itr, loss)
+                self.save_model(itr,loss)
         print("Training Completed")
 
     def train(self, input_variables, output_variables):
@@ -325,8 +331,8 @@ class Rephraser:
             input_variable = input_variables[count]
             output_variable = output_variables[count]
 
-            #a = [input_variable[k].item() for k in range(len(input_variable))]
-            #print([self.vocab_normal.id2word[a[i]] for i in range(len(input_variable))])
+            # a = [input_variable[k].item() for k in range(len(input_variable))]
+            # print([self.vocab_normal.id2word[a[i]] for i in range(len(input_variable))])
             # b = [output_variable[k].item() for k in range(len(output_variable))]
             # print([self.vocab_simple.id2word[b[i]] for i in range(len(output_variable))],'\n')
 
@@ -385,6 +391,7 @@ class Rephraser:
         # Backpropagation
         loss.backward()
         self.encoder_a_optimizer.step()
+        self.encoder_c_optimizer.step()
         self.decoder_optimizer.step()
         return loss.item() / output_length
 

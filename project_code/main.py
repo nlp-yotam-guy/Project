@@ -17,7 +17,7 @@ DROP_PROB = 0.2
 MAX_LEN_OF_SENTENCE = 5
 FILTER_SIZES = (2, 3, 4)
 BATCH_SIZE = 256
-NUM_EPOCHES = 100000
+NUM_EPOCHES = 1000
 CONV_LAYERS = 5
 LIMIT_DATA_SIZE = -1
 LEARNING_RATE = 0.0001
@@ -28,6 +28,7 @@ ACTIVE_DATASET = 'newsela'
 LOAD_EMBEDDINGS = True
 
 EVAL_PRINT = 200
+PRINT_EVERY = 1
 
 
 def main():
@@ -81,10 +82,8 @@ def main():
                       embedding_matrix=(embedding_matrix_normal,embedding_matrix_simple))
     #plot_model(model, to_file='model.png', show_shapes=True)
     print('Fitting the model')
-    model.trainIters(input_dataset,output_dataset,print_every=100)
+    model.trainIters(input_dataset,output_dataset,print_every=PRINT_EVERY)
     print('Done fitting')
-    print('Saving the model')
-    torch.save(model, 'Full_Model.pth')
     # # test on some training sequences
 
     # eval_set_norm = normal_sents_test[:EVAL_PRINT]
