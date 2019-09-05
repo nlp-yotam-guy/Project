@@ -9,6 +9,9 @@ from model import *
 from collections import namedtuple
 import torch
 import random
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 VALIDATION_SPLIT = 0.33
 EMBEDDING_DIM = 100
@@ -98,6 +101,13 @@ def main():
 
     for i in range(min(len(eval_set_norm),len(eval_set_simp))):
         model.evaluate((eval_set_norm[i], eval_set_simp[i]))
+
+    plt.plot(model.loss_graph)
+    plt.title('Loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.savefig('loss.png')
+    #plt.show()
 
 
 if __name__ == '__main__':

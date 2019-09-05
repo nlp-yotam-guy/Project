@@ -142,6 +142,7 @@ class Rephraser:
         self.use_cuda = use_cuda
         self.lr = learning_rate
         self.teacher_forcing_ratio = teacher_forcing_ratio
+        self.loss_graph = []
 
         try:
             self.embedding_matrix_normal = torch.from_numpy(embedding_matrix[0])
@@ -273,7 +274,8 @@ class Rephraser:
             'encoder_a_optimizer': self.encoder_a_optimizer.state_dict(),
             'encoder_c_optimizer': self.encoder_c_optimizer.state_dict(),
             'decoder_optimizer': self.decoder_optimizer.state_dict(),
-            'loss': loss
+            'loss': loss,
+            'loss_graph': self.loss_graph
             }, 'saved_model_weights')
 
     def trainIters(self, input_dataset, output_dataset, print_every=100):
@@ -311,10 +313,12 @@ class Rephraser:
             #     print([self.vocab_simple.id2word[j.item()] for j in target_variable[i]],'\n')
 
             loss = self.train(input_variable, target_variable)
+            self.loss_graph.append(loss)
 
             if itr % print_every == 0:
                 print(itr, loss)
                 self.save_model(itr,loss)
+
         print("Training Completed")
 
     def train(self, input_variables, output_variables):
