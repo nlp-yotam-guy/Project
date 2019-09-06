@@ -69,7 +69,7 @@ class AttnDecoder(nn.Module):
         self.lstm = nn.LSTM(hidden_size_lstm + embedding_size, hidden_size_lstm,
                             n_layers_lstm, bidirectional=True)
         self.transform_lstm_hidden_in = nn.Linear(hidden_size_lstm, embedding_size)
-        self.transform_lstm_hidden_out = nn.Linear(2*hidden_size_lstm, embedding_size)
+        self.transform_lstm_hidden_out = nn.Linear(2*hidden_size_lstm*n_layers_lstm, embedding_size)
         self.dense_o = nn.Linear(hidden_size_lstm, output_vocab_size)
 
         self.n_layers_lstm = n_layers_lstm
@@ -89,11 +89,11 @@ class AttnDecoder(nn.Module):
 
         c_i = torch.bmm(a_i.view(1, 1, -1), cnn_c.transpose(1, 2))
         lstm_output, lstm_h = self.lstm(torch.cat((x, c_i), dim=-1))
-        lstm_h = lstm_h[0][-1]
-        # lstm_h = lstm_h.reshape((1,1,lstm_h.size()[0]))
-        # lstm_h = self.transform_lstm_hidden_out(lstm_h)
-        lstm_hidden = F.dropout(lstm_h, self.dropout, self.training)
-        softmax_output = F.log_softmax(self.dense_o(lstm_hidden)).view(1,-1)
+        lstm_h = lstm_h[0].flatten(0, -1)
+        lstm_h = lstm_h.reshape((1,1,lstm_h.size()[0]))
+        lstm_h = self.transform_lstm_hidden_out(lstm_h)
+        lstm_hidden = F.dropout(lstm_h[0], self.dropout, self.training)
+        softmax_output = F.log_softmax(self.dense_o(lstm_hidden))
 
         # if pos < len(input_sentence) and input_sentence[pos].item() not in vocab_simple.id2word:
         #     _, j_star = a_i[0].max(0)
