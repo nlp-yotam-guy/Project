@@ -1,263 +1,463 @@
 from process_data import *
-from attention import *
-from keras.layers import *
-from keras.layers.core import Dropout, Dense
-from keras.layers import Conv1D, Activation
-from keras.layers.pooling import MaxPooling1D
-from keras.layers import LSTM, Bidirectional, concatenate, Flatten
-from keras.layers import RepeatVector
-from keras.layers import TimeDistributed
-from keras.models import Sequential
-from keras.layers.embeddings import Embedding
-from keras.optimizers import Adam
-from keras.utils.vis_utils import plot_model
-from keras import Model, Input
-import tensorflow as tf
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.autograd import Variable
+from torch import optim
 import numpy as np
+import random
 
-from MLSTM import MLSTM
 
 PRINT_PROGRESS = 1
 MAX_EVAL_PRINT = 15
 
 
+class ConvEncoder(nn.Module):
+    def __init__(self, vocab_size, embedding_matrix, embedding_size, max_len, dropout=0.2,
+                 num_channels_attn=512, num_channels_conv=512,
+                 kernel_size=3, num_layers=5):
+        super(ConvEncoder, self).__init__()
+        self.position_embedding = nn.Embedding(max_len, embedding_size)
+        self.word_embedding = nn.Embedding(vocab_size, embedding_size)
+        self.word_embedding.weight.data.copy_(embedding_matrix)
+        self.word_embedding.weight.requires_grad = False
+        self.num_layers = num_layers
+        self.dropout = dropout
+
+        self.conv = nn.ModuleList([nn.Conv1d(num_channels_conv, num_channels_conv, kernel_size,
+                                             padding=kernel_size // 2) for _ in range(num_layers)])
+
+    def forward(self, position_ids, sentence_as_wordids):
+        # Retrieving position and word embeddings
+        position_embedding = self.position_embedding(position_ids)
+        word_embedding = self.word_embedding(sentence_as_wordids)
+
+        # Applying dropout to the sum of position + word embeddings
+        embedded = F.dropout(position_embedding + word_embedding, self.dropout, self.training)
+
+        # Transform the input to be compatible for Conv1d as follows
+        # Length * Channel ==> Num Batches * Channel * Length
+        embedded = torch.unsqueeze(embedded.transpose(0, 1), 0)
+
+        # Successive application of convolution layers followed by residual connection
+        # and non-linearity
+
+        cnn = embedded
+        for i, layer in enumerate(self.conv):
+            # layer(cnn) is the convolution operation on the input cnn after which
+            # we add the original input creating a residual connection
+            cnn = F.tanh(layer(cnn) + cnn)
+
+        return cnn
+
+class AttnDecoder(nn.Module):
+
+    def __init__(self, output_vocab_size, word_freq, use_cuda, dropout=0.2, hidden_size_lstm=128,
+                 cnn_size=128, attn_size=128, n_layers_lstm=4,
+                 embedding_size=128):
+
+        super(AttnDecoder, self).__init__()
+
+        self.n_lstm_layers = n_layers_lstm
+        self.hidden_size_lstm = hidden_size_lstm
+        self.output_vocab_size = output_vocab_size
+        self.dropout = dropout
+        self.word_freq = word_freq
+        self.word_count = dict()
+
+        self.embedding = nn.Embedding(output_vocab_size, hidden_size_lstm)
+        self.lstm = nn.LSTM(hidden_size_lstm + embedding_size, hidden_size_lstm,
+                            n_layers_lstm, bidirectional=True)
+        self.transform_lstm_hidden_in = nn.Linear(hidden_size_lstm, embedding_size)
+        self.transform_lstm_hidden_out = nn.Linear(2*hidden_size_lstm*n_layers_lstm, embedding_size)
+        self.dense_o = nn.Linear(hidden_size_lstm, output_vocab_size)
+
+        self.n_layers_lstm = n_layers_lstm
+
+        self.use_cuda = use_cuda
+
+    def forward(self, y_i, g_i, h_i, cnn_a, cnn_c, input_sentence, pos, vocab_simple):
+        x = self.embedding(y_i)
+        #shape = [1]+list(g_i.size())
+        #g_i = torch.reshape(g_i, shape)
+        x = F.dropout(x, self.dropout, self.training)
+        d_i = self.transform_lstm_hidden_in(h_i) + x
+        # print(d_i.size(), cnn_a.size())
+        s_i = torch.bmm(d_i, cnn_a)
+        s_i = s_i.view(1, -1)
+        a_i = F.softmax(s_i)
+
+        c_i = torch.bmm(a_i.view(1, 1, -1), cnn_c.transpose(1, 2))
+        lstm_output, lstm_h = self.lstm(torch.cat((x, c_i), dim=-1))
+        lstm_h = lstm_h[0].flatten(0, -1)
+        lstm_h = lstm_h.reshape((1,1,lstm_h.size()[0]))
+        lstm_h = self.transform_lstm_hidden_out(lstm_h)
+        lstm_hidden = F.dropout(lstm_h[0], self.dropout, self.training)
+        softmax_output = F.log_softmax(self.dense_o(lstm_hidden))
+
+        # if pos < len(input_sentence) and input_sentence[pos].item() not in vocab_simple.id2word:
+        #     _, j_star = a_i[0].max(0)
+        #     x_j_star = input_sentence[j_star].item()
+        #     if x_j_star > len(vocab_simple.id2word):
+        #         return softmax_output, gru_hidden
+        #     else:
+        #         softmax_output.fill_(0)
+        #         softmax_output[0][x_j_star] = 1
+        #         softmax_output_copy = F.log_softmax(softmax_output_copy)
+        #         softmax_output_copy = softmax_output_copy.view(1, len(softmax_output_copy))
+        #         softmax_output_copy = softmax_output_copy.cuda() if self.use_cuda else softmax_output_copy
+        #         return softmax_output_copy, gru_hidden
+        return softmax_output, lstm_hidden
+
+
+    # function to initialize the hidden layer of GRU.
+    def initHidden(self):
+        result = Variable(torch.zeros(self.n_layers_lstm, 1, self.hidden_size_lstm))
+        if self.use_cuda:
+            return result.cuda()
+        else:
+            return result
+
+
 class Rephraser:
 
-    def __init__(self,embed_dim, max_input_len, drop_prob,
-                 hidden_size, batch_size, n_epoches, max_output_len,
-                 vocab_size,n_conv_layers,kernel_size=3,embedding_matrix=None):
+    def __init__(self,embed_dim, max_len, drop_prob,
+                 hidden_size, batch_size, n_epoches, vocab_normal, vocab_simple,
+                 vocab_size_normal, vocab_size_simple, word_freq, n_conv_layers,
+                 learning_rate, use_cuda, kernel_size=3, embedding_matrix=None,teacher_forcing_ratio = 0.5):
 
         self.embed_dim = embed_dim
-        self.embedding_matrix = embedding_matrix
-        self.max_input_len = max_input_len
-        self.normal_max_len = max_input_len
-        self.simple_max_len = max_output_len
+        self.max_len = max_len
         self.drop_prob = drop_prob
         self.hidden_size = hidden_size
         self.batch_size = batch_size
         self.n_epoches = n_epoches
-        self.max_output_len = max_output_len
-        self.vocab_size = vocab_size
+        self.vocab_normal = vocab_normal
+        self.vocab_simple = vocab_simple
+        self.vocab_size_normal = vocab_size_normal
+        self.vocab_size_simple = vocab_size_simple
+        self.word_freq = word_freq
         self.n_conv_layers = n_conv_layers
         self.kernel_size = kernel_size
+        self.use_cuda = use_cuda
+        self.lr = learning_rate
+        self.teacher_forcing_ratio = teacher_forcing_ratio
+        self.loss_graph = []
 
-        if embedding_matrix is None:
-            self.embedding_matrix = np.zeros((self.vocab_size,self.embed_dim))
+        try:
+            self.embedding_matrix_normal = torch.from_numpy(embedding_matrix[0])
+            self.embedding_matrix_simple = torch.from_numpy(embedding_matrix[1])
 
-        self.model = None
+        except:
+            self.embedding_matrix_normal = torch.from_numpy(np.zeros((self.vocab_size_normal,self.embed_dim),
+                                                                     dtype=np.float32))
+            self.embedding_matrix_simple = torch.from_numpy(np.zeros((self.vocab_size_simple, self.embed_dim),
+                                                                     dtype=np.float32))
+
+        self.embedding_matrix_normal = self.embedding_matrix_normal.cuda() if self.use_cuda \
+            else self.embedding_matrix_normal
+        self.embedding_matrix_simple = self.embedding_matrix_simple.cuda() if self.use_cuda \
+            else self.embedding_matrix_simple
+
+        self.encoder_a = None
+        self.encoder_c = None
+        self.decoder = None
+        self.criterion = None
+        self.encoder_a_optimizer = None
+        self.encoder_c_optimizer = None
+        self.decoder_optimizer = None
+
         self.define()
-        # self.define_nmt()
-        #self.define_model2()
-        # self.CNN_LSTM()
-        print(self.model.summary())
+
+        # print(self.model.summary())
+
+    def init_weights(self,m):
+
+        if not hasattr(m, 'weight'):
+            return
+        if type(m) == nn.Conv1d:
+            width = m.weight.data.shape[-1] / (m.weight.data.shape[0] ** 0.5)
+        else:
+            width = 0.05
+
+        m.weight.data.uniform_(-width, width)
 
     def define(self):
-        # https://github.com/pradeepsinngh/Neural-Machine-Translation/blob/master/machine_translation.ipynb
-        learning_rate = 1e-3
+        self.encoder_a = ConvEncoder(self.vocab_size_normal, self.embedding_matrix_normal, self.embed_dim, self.max_len, dropout=self.drop_prob,
+                                num_channels_attn=self.hidden_size, num_channels_conv=self.hidden_size,
+                                num_layers=3*self.n_conv_layers)
+        self.encoder_c = ConvEncoder(self.vocab_size_normal, self.embedding_matrix_normal, self.embed_dim, self.max_len, dropout=self.drop_prob,
+                                num_channels_attn=self.hidden_size, num_channels_conv=self.hidden_size,
+                                num_layers=self.n_conv_layers)
+        self.decoder = AttnDecoder(self.vocab_size_simple, self.word_freq, self.use_cuda, dropout=self.drop_prob,
+                              hidden_size_lstm=self.hidden_size, embedding_size=self.embed_dim,
+                              attn_size=self.hidden_size, cnn_size=self.hidden_size)
 
-        input_seq = Input(shape=(self.max_input_len,),dtype='int32')
-        emb = Embedding(self.vocab_size,
-                        self.embed_dim,
-                        weights=[self.embedding_matrix],
-                        trainable=False)(input_seq)
-        bdrnn = Bidirectional(LSTM(self.hidden_size, return_sequences=True))(emb)
-        dense = Dense(self.vocab_size, activation='softmax')
-        logits = TimeDistributed(dense)(bdrnn)
+        if self.use_cuda:
+            self.encoder_a = self.encoder_a.cuda()
+            self.encoder_c = self.encoder_c.cuda()
+            self.decoder = self.decoder.cuda()
 
-        self.model = Model(inputs=input_seq, outputs=logits)
-        self.model.compile(loss='categorical_crossentropy',
-                      optimizer=Adam(learning_rate),
-                      metrics=['accuracy'])
+        self.encoder_a.apply(self.init_weights)
+        self.encoder_c.apply(self.init_weights)
+        self.decoder.apply(self.init_weights)
 
+        self.encoder_a.training = True
+        self.encoder_c.training = True
+        self.decoder.training = True
 
-    def define_nmt(self):
-        # Define an input sequence and process it.
-        encoder_inputs = Input(shape=(self.normal_max_len,))
-        decoder_inputs = Input(shape=(self.simple_max_len,))
-        # Embedding layer
-        encoder_embeddings = Embedding(self.vocab_size,
-                                       self.hidden_size,
-                                       input_length=self.normal_max_len,
-                                       weights=[self.embedding_matrix],
-                                       trainable=True)(encoder_inputs)
+        self.encoder_a_optimizer = optim.Adam(self.encoder_a.parameters(), lr=self.lr)
+        self.encoder_c_optimizer = optim.Adam(self.encoder_c.parameters(), lr=self.lr)
+        self.decoder_optimizer = optim.Adam(self.decoder.parameters(), lr=self.lr)
 
-        decoder_embeddings = Embedding(self.vocab_size,
-                                       self.hidden_size,
-                                       input_length=self.simple_max_len,
-                                       weights=[self.embedding_matrix],
-                                       trainable=True)(decoder_inputs)
-        # Convolutional Encoder
-        encoder_conv = Conv1D(filters=self.hidden_size, kernel_size=3, activation='relu', padding='valid')
-        ### problem here
-        encoder_out = encoder_conv(encoder_embeddings)
-        # Set up the decoder GRU, using `encoder_states` as initial state.
-        decoder_lstm = LSTM(self.hidden_size, return_sequences=True)
-        decoder_out = decoder_lstm(decoder_embeddings)
-        # Attention layer
-        attention = dot([decoder_out, encoder_out], axes=[2, 2])
-        attention = Activation('softmax')(attention)
-        # Concat attention output and decoder output
-        decoder_concat_input = Concatenate(axis=-1, name='concat_layer')([decoder_out, attention])
-        # Dense layer
-        dense = Dense(self.vocab_size, activation='softmax', name='softmax_layer')
-        dense_time = TimeDistributed(dense, name='time_distributed_layer')
-        decoder_pred = dense_time(decoder_concat_input)
-        # Full model
-        full_model = Model(inputs=[encoder_inputs, decoder_inputs], outputs=decoder_pred)
-        full_model.compile(optimizer='adam', loss='categorical_crossentropy')
-        self.model = full_model
+        self.encoder_a_optimizer.zero_grad()
+        self.encoder_c_optimizer.zero_grad()
+        self.decoder_optimizer.zero_grad()
 
+        self.criterion = nn.NLLLoss()
 
-    def define_model2(self):
-        deep_inputs = Input(shape=(self.normal_max_len,))
-        input_layer = Embedding(self.vocab_size, self.hidden_size, input_length=self.normal_max_len)(deep_inputs)
-        conv1 = Conv1D(100, (3), activation='relu')(input_layer)
-        dropout_1 = Dropout(0.7)(conv1)
-        conv2 = Conv1D(100, (4), activation='relu')(input_layer)
-        dropout_2 = Dropout(0.7)(conv2)
-        conv3 = Conv1D(100, (5), activation='relu')(input_layer)
-        dropout_3 = Dropout(0.7)(conv3)
-        conv4 = Conv1D(100, (6), activation='relu')(input_layer)
-        dropout_4 = Dropout(0.7)(conv4)
-        maxpool1 = MaxPooling1D(pool_size=self.normal_max_len - 2)(dropout_1)
-        maxpool2 = MaxPooling1D(pool_size=self.normal_max_len - 3)(dropout_2)
-        maxpool3 = MaxPooling1D(pool_size=self.normal_max_len - 4)(dropout_3)
-        maxpool4 = MaxPooling1D(pool_size=self.normal_max_len - 5)(dropout_4)
-        flat1 = Flatten()(maxpool1)
-        flat2 = Flatten()(maxpool2)
-        flat3 = Flatten()(maxpool3)
-        flat4 = Flatten()(maxpool4)
-        cc1 = concatenate([flat1, flat2, flat3, flat4])
-        vec = RepeatVector(self.simple_max_len)(cc1)
-        lstm = Bidirectional(LSTM(self.hidden_size, return_sequences=True))(vec)
-        attention = dot([lstm, vec], axes=[2, 2])
-        attention = Activation('softmax')(attention)
-        context = dot([attention, vec], axes=[2, 1])
-        output = Dense(self.vocab_size, activation='softmax')(context)
-        model = Model(inputs=[deep_inputs], outputs=output)
-        learning_rate = 1e-3
-        model.compile(loss='categorical_crossentropy', optimizer=Adam(learning_rate), metrics=['accuracy'])
-        self.model = model
-
-
-    def CNN_LSTM(self):
-
-        # encoder
-        inputs_sentence = Input(batch_shape=(self.batch_size,self.max_input_len,))
-        input_positions = Input(batch_shape=(self.batch_size,self.max_input_len,))
-        embed_sentence = Embedding(self.vocab_size,
-                                   self.hidden_size,
-                                   input_length=self.normal_max_len,
-                                   weights=[self.embedding_matrix],
-                                   trainable=False)(inputs_sentence)
-
-        embed_position = Embedding(self.vocab_size,
-                                   self.hidden_size,
-                                   input_length=self.normal_max_len,
-                                   trainable=True)(input_positions)
-
-        embedding = Dropout(self.drop_prob)(embed_sentence + embed_position)
-
-        conv_a = Conv1D(self.hidden_size,self.kernel_size,padding='same')(embedding)
-        for i in range(1,self.n_conv_layers):
-            conv_a = conv_a + Conv1D(self.hidden_size,self.kernel_size,padding='same')(conv_a)
-            conv_a = Activation('tanh')(conv_a)
-
-        conv_c = Conv1D(self.hidden_size, self.kernel_size, padding='same')(embedding)
-        for i in range(1, self.n_conv_layers):
-            conv_c = conv_c + Conv1D(self.hidden_size, self.kernel_size, padding='same')(conv_c)
-            conv_c = Activation('tanh')(conv_c)
-
-        ##### end of encoding #####
-
-        z = conv_a
-        z_tag = conv_c
-
-        # decoder
-        lstm = MLSTM(self.hidden_size, return_state=True, return_sequences=True)
-        decoded = lstm.call(z,z_tag)
-        dense = Dense(self.vocab_size, activation='softmax')
-        logits = TimeDistributed(dense)(decoded)
-
-        self.model = Model(inputs=[inputs_sentence,input_positions], outputs=logits)
-        self.model.compile(loss='categorical_crossentropy',
-                      optimizer=Adam(learning_rate),
-                      metrics=['accuracy'])
-
-        # states = None
-        # for i in range(z.shape[1]):
-        #     lstm_single_timestep = z[:,i,:]
-        #     shape = (int(lstm_single_timestep.shape[0]),1,int(lstm_single_timestep.shape[1]))
-        #     lstm_single_timestep = tf.reshape(lstm_single_timestep, shape)
-        #     if states is None:
-        #         lstm_single_timestep, state_h, state_c = \
-        #             LSTM(self.hidden_size, return_state=True, return_sequences=True)(lstm_single_timestep)
-        #     else:
-        #         lstm_single_timestep, state_h, state_c = \
-        #             LSTM(self.hidden_size, return_state=True,
-        #                  return_sequences=True)(lstm_single_timestep,initial_state=states)
-        #     states = [state_h, state_c]
-        #     attention = Activation('softmax')(dot([state_h,lstm_single_timestep],-1))
-        #     c_i = dot([attention,z],-2)
-
-
-
-        print('a')
-
-
-
-
-    def train(self,generator,validation_split):
-        self.model.fit_generator(generator, epochs=self.n_epoches, verbose=PRINT_PROGRESS)
-
-
-    # simplify a given sentence
-    def predict(self,tokenizer,sentence):
-        prediction = self.model.predict(sentence)[0]
-        integers = [np.argmax(vector) for vector in prediction]
-        target = list()
-        for i in integers:
-            word = idx2word(i, tokenizer)
-            if word is None:
+    def create_batch(self,training_pairs,idx):
+        batch = []
+        j=0
+        for i in idx:
+            batch.append(training_pairs[i])
+            j += 1
+            if j > self.batch_size:
                 break
-            target.append(word)
-        return ' '.join(target)
+        return batch
+
+    def get_constrained_id(self,decoder_output, word_count):
+        k = 1
+        cont = False
+        while not cont:
+            topv, topi = decoder_output.data.topk(k)
+            ni = topi[0][-1]
+            id = ni.item()
+            if id in self.vocab_normal.id2word:
+                w = self.vocab_normal.id2word[id]
+            else:
+                w = self.vocab_simple.id2word[id]
+            if w in word_count:
+                word_count[w] += 1
+                cont = True
+            else:
+                word_count[w] = 1
+                cont = True
+            if word_count[w] > self.word_freq[w]:
+                k += 1
+                cont = False
+        return ni
+
+    def get_initial_encoding(self):
+        # decoder_output = torch.normal(0.5, 1, (1, self.vocab_size_simple))
+        decoder_output = np.random.normal(0, 1, (1, self.vocab_size_simple)).astype(np.float32)
+        decoder_output = torch.from_numpy(decoder_output)
+        decoder_output = torch.softmax(decoder_output, -1)
+        decoder_output = decoder_output.cuda() if self.use_cuda else decoder_output
+        decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
+        return decoder_output
+
+    # def to_one_hot(self,idx):
+    #     vec = np.zeros((1,self.vocab_size))
+    #     vec[0][idx] = 1
+    #     vec = Variable(torch.LongTensor(vec))
+    #     vec = vec.cuda() if self.use_cuda else vec
+    #     return vec
+
+
+    def save_model(self, iter, loss):
+        torch.save({
+            'iter': iter,
+            'encoder_a_state_dict': self.encoder_a.state_dict(),
+            'encoder_c_state_dict': self.encoder_c.state_dict(),
+            'decoder_state_dict': self.decoder.state_dict(),
+            'encoder_a_optimizer': self.encoder_a_optimizer.state_dict(),
+            'encoder_c_optimizer': self.encoder_c_optimizer.state_dict(),
+            'decoder_optimizer': self.decoder_optimizer.state_dict(),
+            'loss': loss,
+            'loss_graph': self.loss_graph
+            }, 'saved_model_weights')
+
+    def trainIters(self, input_dataset, output_dataset, print_every=100):
+
+        # Sample a training pair
+        # training_pairs = list(zip(*(input_dataset, output_dataset)))
+
+        training_pairs = [(input_dataset[i],output_dataset[i]) for i in range(len(input_dataset))]
+        idx = list(range(len(training_pairs)))
+
+        # k = 10
+        # for i in range(k):
+        #     print([self.vocab.id2word[j] for j in training_pairs[i][0]])
+        #     print([self.vocab.id2word[j] for j in training_pairs[i][1]], '\n')
+
+        print_loss_total = 0
+
+        # The important part of the code is the 3rd line, which performs one training
+        # step on the batch. We are using a variable `print_loss_total` to monitor
+        # the loss value as the training progresses
+
+        for itr in range(1, self.n_epoches + 1):
+            random.shuffle(idx)
+            training_pair = self.create_batch(training_pairs,idx)
+            # for instance - training pair[0] is a normal "sentence" with shape
+            #  => [107, 655,  68, 106,  11, 656, 455, 657, 158,   1]
+            # training_pair = random.sample(training_pairs, k=self.batch_size)
+
+            # for instance - input variable with shape=> [389, 382, 383,  72, 216, 217, 156, 388,   1]
+            # for instance - target variable with shape => [ 35, 115,   4, 958, 959,   8, 961, 962, 963,   1]
+            input_variable, target_variable = list(zip(*training_pair))
+            # k=10
+            # for i in range(k):
+            #     print([self.vocab_normal.id2word[j.item()] for j in input_variable[i]])
+            #     print([self.vocab_simple.id2word[j.item()] for j in target_variable[i]],'\n')
+
+            loss = self.train(input_variable, target_variable)
+            self.loss_graph.append(loss)
+
+            if itr % print_every == 0:
+                print(itr, loss)
+                self.save_model(itr,loss)
+
+        print("Training Completed")
+
+    def train(self, input_variables, output_variables):
+
+        # Initialize the gradients to zero
+        self.encoder_a_optimizer.zero_grad()
+        self.encoder_c_optimizer.zero_grad()
+        self.decoder_optimizer.zero_grad()
+
+        use_teacher_forcing = True if random.random() < self.teacher_forcing_ratio else False
+
+        for count in range(self.batch_size):
+            # Length of input and output sentences
+            input_variable = input_variables[count]
+            output_variable = output_variables[count]
+
+            # a = [input_variable[k].item() for k in range(len(input_variable))]
+            # print([self.vocab_normal.id2word[a[i]] for i in range(len(input_variable))])
+            # b = [output_variable[k].item() for k in range(len(output_variable))]
+            # print([self.vocab_simple.id2word[b[i]] for i in range(len(output_variable))],'\n')
+
+            input_length = input_variable.size()[0]
+            output_length = output_variable.size()[0]
+
+            # input_length = len(input_variable)
+            # output_length = len(output_variable)
+
+            loss = 0
+
+            # Encoder outputs: We use this variable to collect the outputs
+            # from encoder after each time step. This will be sent to the decoder.
+            position_ids = Variable(torch.LongTensor(list(range(0, input_length))))
+            position_ids = position_ids.cuda() if self.use_cuda else position_ids
+
+            cnn_a = self.encoder_a(position_ids, input_variable)
+            cnn_c = self.encoder_c(position_ids, input_variable)
+
+            cnn_a = cnn_a.cuda() if self.use_cuda else cnn_a
+            cnn_c = cnn_c.cuda() if self.use_cuda else cnn_c
+
+            prev_word = Variable(torch.LongTensor([[0]]))  # SOS
+            prev_word = prev_word.cuda() if self.use_cuda else prev_word
+
+            # to feed the RNN step with weighted sum of the embedding matrix
+            decoder_output = self.get_initial_encoding()
+            decoder_hidden = self.decoder.initHidden()
+
+            word_count = dict()
+            for i in range(output_length):
+                decoder_hidden = decoder_hidden[-1].view(1,1,-1)
+                decoder_output, decoder_hidden = \
+                    self.decoder(prev_word, decoder_output, decoder_hidden, cnn_a, cnn_c, input_variable, i,
+                                 self.vocab_simple)
+                topv, topi = decoder_output.data.topk(1)
+                ni = topi[0].item()
+                # ni = self.get_constrained_id(decoder_output,word_count)
+
+                if use_teacher_forcing:
+                    prev_word = Variable(torch.LongTensor([[output_variable[i]]]))
+                else:
+                    prev_word = Variable(torch.LongTensor([[ni]]))
+                prev_word = prev_word.cuda() if self.use_cuda else prev_word
+                # one_hot = self.to_one_hot(output_variable[i])
+                out = Variable(torch.LongTensor([output_variable[i]]))
+                out = out.cuda() if self.use_cuda else out
+                loss += self.criterion(decoder_output, out)
+
+                # to feed the RNN step with weighted sum of the embedding matrix
+                # decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
+
+                if ni == 1:  # EOS
+                    break
+
+        # Backpropagation
+        loss.backward()
+        self.encoder_a_optimizer.step()
+        self.encoder_c_optimizer.step()
+        self.decoder_optimizer.step()
+        return loss.item() / output_length
+
 
     # evaluate the the model
-    def evaluate(self, tokenizer, sources, normal_sents_orig, simple_sents_orig):
-        actual, predicted = list(), list()
-        for i, source in enumerate(sources):
-            # translate encoded source text
-            source = source.reshape((1, source.shape[0]))
-            translation = self.predict(tokenizer, source)
-            raw_target, raw_src = normal_sents_orig[i], simple_sents_orig[i]
-            print('src=[%s], target=[%s], predicted=[%s]' % (raw_src, raw_target, translation))
-            if i >= MAX_EVAL_PRINT:
-                break
-        # actual.append([raw_target.split()])
-        # predicted.append(translation.split())
-        # calculate BLEU score
-        # print('BLEU-1: %f' % corpus_bleu(actual, predicted, weights=(1.0, 0, 0, 0)))
-        # print('BLEU-2: %f' % corpus_bleu(actual, predicted, weights=(0.5, 0.5, 0, 0)))
-        # print('BLEU-3: %f' % corpus_bleu(actual, predicted, weights=(0.3, 0.3, 0.3, 0)))
-        # print('BLEU-4: %f' % corpus_bleu(actual, predicted, weights=(0.25, 0.25, 0.25, 0.25)))
+    def evaluate(self, sent_pair):
+        self.encoder_a.training = False
+        self.encoder_c.training = False
+        self.decoder.training = False
+        # source_sent = sent_to_word_id(np.array([sent_pair[0]]), vocab, self.max_len)
+        source_sent = sent_pair[0]
+        if (len(source_sent) == 0):
+            return
+        # source_sent = source_sent[0]
+        input_variable = Variable(torch.LongTensor(source_sent))
+
+        if self.use_cuda:
+            input_variable = input_variable.cuda()
+
+        input_length = input_variable.size()[0]
+        position_ids = Variable(torch.LongTensor(range(0, input_length)))
+        position_ids = position_ids.cuda() if self.use_cuda else position_ids
+        cnn_a = self.encoder_a(position_ids, input_variable)
+        cnn_c = self.encoder_c(position_ids, input_variable)
+        cnn_a = cnn_a.cuda() if self.use_cuda else cnn_a
+        cnn_c = cnn_c.cuda() if self.use_cuda else cnn_c
+
+        prev_word = Variable(torch.LongTensor([[0]]))  # SOS
+        prev_word = prev_word.cuda() if self.use_cuda else prev_word
+
+        decoder_output = self.get_initial_encoding()
+        decoder_hidden = self.decoder.initHidden()
+        target_sent = []
+        ni = 0
+        out_length = 0
+        word_count = dict()
+        while not ni == 1 and out_length < self.max_len:
+            decoder_hidden = decoder_hidden[-1].view(1, 1, -1)
+            decoder_output, decoder_hidden = \
+                self.decoder(prev_word, decoder_output, decoder_hidden, cnn_a, cnn_c, input_variable, out_length, self.vocab_simple)
+            # print("softmax: ", decoder_output)
+            # print("top: ", decoder_output.data.topk(1))
+            # print(self.vocab_simple.id2word[ni])
+            topv, topi = decoder_output.data.topk(1)
+            ni = topi[0].item()
+            target_sent.append(self.vocab_simple.id2word[ni])
+            prev_word = Variable(torch.LongTensor([[ni]]))
+            prev_word = prev_word.cuda() if self.use_cuda else prev_word
+            out_length += 1
+            # decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
+
+
+        orig_sent = word_id_to_sent(sent_pair[0], self.vocab_normal)
+        expected_sent = word_id_to_sent(sent_pair[1], self.vocab_simple)
+        print("Source: " + orig_sent)
+        print("Translated: " + ' '.join(target_sent))
+        print("Expected: " + expected_sent)
+        print("")
 
 
 
 
-def Vectorize_Sentences(data, max_len,unk_vec):
-    list_of_matrices = np.zeros((len(data),max_len,EMBEDDING_DIM))
-    for i, sent in enumerate(data):
-        mat = create_sentence_matrix(embedding_matrix, embeddings_matrix_index, sent, unk_vec, max_len)
-        list_of_matrices[i] = mat
-    return list_of_matrices
-
-# map an integer to a word
-def idx2word(integer, tokenizer):
-    for word, index in tokenizer.word_index.items():
-        if index == integer:
-            return word
-    return None
 
 
 

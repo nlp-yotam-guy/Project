@@ -1,43 +1,57 @@
 import numpy as np
-from keras.preprocessing.text import Tokenizer
-from keras.preprocessing.sequence import pad_sequences
-from keras.utils import to_categorical, Sequence
-
-# WIKI_SIMPLE = '/normal.aligned'
-# WIKI_NORMAL = '/simple.aligned'
-# GLOVE_PATH = 'C:\\Users\\guyazov\\PycharmProjects\\SentenceSimplificationProject\\data\\Glove\\glove.6B.100d.txt'
-# BATCH_SIZE = 32
-# EMBEDDING_DIM = 100
+import torch
+from torch.autograd import Variable
+import re
+import unicodedata
 
 WIKI_SIMPLE = '/normal.aligned'
 WIKI_NORMAL = '/simple.aligned'
 NEWSELA = '/newsela_articles_20150302.aligned.sents.txt'
 
+SOS_TOKEN = "<sos>"
+EOS_TOKEN = "."
 
-class Batch_Generator(Sequence):
-    def __init__(self, normal, simple, tokenizer, embedding_matrix, batch_size, max_len_normal, max_len_simple):
-        self.normal = normal
-        self.simple = simple
-        self.tokenizer = tokenizer
-        self.embedding_matrix = embedding_matrix
-        self.batch_size = batch_size
-        self.max_len_normal = max_len_normal
-        self.max_len_simple = max_len_simple
+# need to convert to pytorch equivalent
+# class Batch_Generator(Sequence):
+#     def __init__(self, normal, simple, tokenizer, embedding_matrix, batch_size, max_len_normal, max_len_simple):
+#         self.normal = normal
+#         self.simple = simple
+#         self.tokenizer = tokenizer
+#         self.embedding_matrix = embedding_matrix
+#         self.batch_size = batch_size
+#         self.max_len_normal = max_len_normal
+#         self.max_len_simple = max_len_simple
+#
+#     def __len__(self):
+#         return int(np.ceil(len(self.normal) / float(self.batch_size)))
+#
+#     def __getitem__(self, idx):
+#         batch_x = self.normal[idx * self.batch_size: (idx + 1) * self.batch_size]
+#         batch_y = self.simple[idx * self.batch_size: (idx + 1) * self.batch_size]
+#
+#         train_normal = encode_sequences(self.tokenizer, self.max_len_normal, batch_x)
+#         train_simple = encode_sequences(self.tokenizer, self.max_len_simple, batch_y)
+#         train_simple = encode_output(train_simple, len(self.tokenizer.word_index) + 1)
+#
+#         # return (train_normal, np.arange(len(train_normal))), train_simple
+#         return train_normal, train_simple
 
-    def __len__(self):
-        return int(np.ceil(len(self.normal) / float(self.batch_size)))
+# Turn a Unicode string to plain ASCII, thanks to
+# https://stackoverflow.com/a/518232/2809427
+def unicodeToAscii(s):
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', s)
+        if unicodedata.category(c) != 'Mn'
+    )
 
-    def __getitem__(self, idx):
-        batch_x = self.normal[idx * self.batch_size: (idx + 1) * self.batch_size]
-        batch_y = self.simple[idx * self.batch_size: (idx + 1) * self.batch_size]
+# Lowercase, trim, and remove non-letter characters
 
-        train_normal = encode_sequences(self.tokenizer, self.max_len_normal, batch_x)
-        train_simple = encode_sequences(self.tokenizer, self.max_len_simple, batch_y)
-        train_simple = encode_output(train_simple, len(self.tokenizer.word_index) + 1)
 
-        # return (train_normal, np.arange(len(train_normal))), train_simple
-        return train_normal, train_simple
-
+def normalizeString(s):
+    s = unicodeToAscii(s.lower().strip())
+    s = re.sub(r"([.!?])", r" \1", s)
+    s = re.sub(r"[^a-zA-Z.!?]+", r" ", s)
+    return s
 
 def load_wiki(wiki_normal, wiki_simple, limit_sent_len=-1, limit_data=-1):
     f_wiki_simple = open(wiki_simple, 'r', encoding="utf8")
@@ -56,18 +70,18 @@ def load_wiki(wiki_normal, wiki_simple, limit_sent_len=-1, limit_data=-1):
     for normal_line, simple_line in zip(normal_sents_orig, simple_sents_orig):
         if i > limit_data:
             break
-        normal_sent = normal_line.split('\t')[-1].lower()
-        simple_sent = simple_line.split('\t')[-1].lower()
+        normal_sent = normalizeString(normal_line.split('\t')[-1])
+        simple_sent = normalizeString(simple_line.split('\t')[-1])
 
         if normal_sent == simple_sents:
             continue
 
         normal_sent = normal_sent.split(' ')
-        if len(normal_sent) > limit_sent_len:
-            continue
+
+        # if len(normal_sent) > limit_sent_len:
+        #     continue
 
         simple_sent = simple_sent.split(' ')
-
         del normal_sent[-1]
         normal_sent.append('.')
         del simple_sent[-1]
@@ -97,14 +111,16 @@ def load_newsela(newsela, limit_sent_len=-1, limit_data=-1):
         splited_line = line.split('\t')
         if splited_line[-2] == splited_line[-1]:
             continue
-        normal_sent = splited_line[-2].lower().split(' ')
-        if len(normal_sent) > limit_sent_len:
-            continue
+        normal_sent = splited_line[-2]
+        normal_sent = normalizeString(normal_sent).split(' ')
+        # if len(normal_sent) > limit_sent_len:
+        #     continue
         if normal_sent[-1] != '.':
             normal_sent.append('.')
-
-        simple_sent = splited_line[-1].lower().split(' ')
+        simple_sent = splited_line[-1]
+        simple_sent = normalizeString(simple_sent).split(' ')
         simple_sent[-1] = simple_sent[-1].replace('\n', '')
+
         normal_sents.append(normal_sent)
         simple_sents.append(simple_sent)
         i += 1
@@ -126,25 +142,55 @@ def load_data(base_path, dataset, limit_sent=-1, limit_data=-1):
     return normal_sents, simple_sents
 
 
-def create_vector_unknown_token():
-    '''
-    :return: a vector for unknown token
-    '''
-    # Get number of vectors and hidden dim
-    with open(GLOVE_PATH, 'r', encoding="utf8") as f:
-        for i, line in enumerate(f):
-            pass
-    n_vec = i + 1
-    hidden_dim = len(line.split(' ')) - 1
+def filter_sentences(normal,simple,limit):
+    norm = []
+    simp = []
+    for i in range(len(normal)):
+        if len(normal[i]) <= limit:
+            norm.append(normal[i])
+            simp.append(simple[i])
+    return norm,simp
 
-    vecs = np.zeros((n_vec, hidden_dim), dtype=np.float32)
+#
+# def create_vector_unknown_token(glove):
+#     '''
+#     :return: a vector for unknown token
+#     '''
+#     # Get number of vectors and hidden dim
+#     with open(GLOVE_PATH, 'r', encoding="utf8") as f:
+#         for i, line in enumerate(f):
+#             pass
+#     n_vec = i + 1
+#     hidden_dim = len(line.split(' ')) - 1
+#
+#     vecs = np.zeros((n_vec, hidden_dim), dtype=np.float32)
+#
+#     with open(GLOVE_PATH, 'r', encoding="utf8") as f:
+#         for i, line in enumerate(f):
+#             vecs[i] = np.array([float(n) for n in line.split(' ')[1:]], dtype=np.float32)
+#
+#     average_vec = np.mean(vecs, axis=0)
+#     return average_vec
 
-    with open(GLOVE_PATH, 'r', encoding="utf8") as f:
-        for i, line in enumerate(f):
-            vecs[i] = np.array([float(n) for n in line.split(' ')[1:]], dtype=np.float32)
 
-    average_vec = np.mean(vecs, axis=0)
-    return average_vec
+def get_word_frequency(sents):
+    frequencies = dict()
+    for sent in sents:
+        cur_sent_freqs = dict()
+        for word in sent:
+            if word in cur_sent_freqs:
+                cur_sent_freqs[word] += 1
+            else:
+                cur_sent_freqs[word] = 1
+        for word in cur_sent_freqs:
+            if word in frequencies:
+                frequencies[word].append(cur_sent_freqs[word])
+            else:
+                frequencies[word] = [cur_sent_freqs[word]]
+    for word in frequencies:
+        avg = sum(frequencies[word]) // len(frequencies[word])
+        frequencies[word] = avg
+    return frequencies
 
 
 def split_data(normal_sents, simple_sents):
@@ -167,7 +213,7 @@ def split_data(normal_sents, simple_sents):
     return normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test
 
 
-def build_embedding_matrix(glove_path, tokenizer):
+def build_embedding_matrix(glove_path, vocab):
     '''
     build embedding matrix of size (Vocab_size, embedding_dim) (GloVe)
     returns the embedding matrix and a word-to-index dictionary
@@ -183,9 +229,9 @@ def build_embedding_matrix(glove_path, tokenizer):
     f.close()
     print('Loaded %s word vectors.' % len(embeddings_index))
     # create a weight matrix for words in training docs
-    word_index = tokenizer.word_index
+    word_index = {**vocab.word2id, **vocab.word2id}
     num_words = len(word_index) + 1
-    embedding_matrix = np.zeros((num_words, len(embeddings_index[word])))
+    embedding_matrix = np.zeros((num_words, len(embeddings_index[word])),dtype=np.float32)
     unk_list = []
     for word, i in word_index.items():
         embedding_vector = embeddings_index.get(word)
@@ -212,8 +258,8 @@ def max_output_sentece_length(simple_sents):
     return len(max_len)
 
 
-def get_vocab_size(embedding_matrix):
-    return embedding_matrix.shape[0]
+# def get_vocab_size(embedding_matrix):
+#     return embedding_matrix.shape[0]
 
 
 # def pad_sentences(sentences):
@@ -224,70 +270,70 @@ def get_vocab_size(embedding_matrix):
 #     return
 
 
-def create_sentence_matrix(embedding_matrix, embeddings_matrix_index, sentence, unk_vector, max_len):
-    '''
-    embedding a sentence to a matrix of size (max_sent_len, embedding_dim)
-    '''
+# def create_sentence_matrix(embedding_matrix, embeddings_matrix_index, sentence, unk_vector, max_len):
+#     '''
+#     embedding a sentence to a matrix of size (max_sent_len, embedding_dim)
+#     '''
+#
+#     # sent_matrix = []
+#     sent_matrix = np.zeros((max_len, embedding_matrix.shape[1]))
+#     for i, word in enumerate(sentence):
+#         if word.lower() in embeddings_matrix_index:
+#             sent_matrix[i] = np.array(embedding_matrix[embeddings_matrix_index[word.lower()]])
+#         else:
+#             sent_matrix[i] = np.array(unk_vector)
+#     return sent_matrix
 
-    # sent_matrix = []
-    sent_matrix = np.zeros((max_len, embedding_matrix.shape[1]))
-    for i, word in enumerate(sentence):
-        if word.lower() in embeddings_matrix_index:
-            sent_matrix[i] = np.array(embedding_matrix[embeddings_matrix_index[word.lower()]])
-        else:
-            sent_matrix[i] = np.array(unk_vector)
-    return sent_matrix
 
-
-def create_batch_matrix(embedding_matrix, embeddings_matrix_index, normal_sents, simple_sents, max_len_simple,
-                        max_len_normal):
-    '''
-    embedding an input batch of sentences to a 3d matrix of size (BATCH_SIZE, max_len_normal, embedding_dim)
-    and an ouput 'gold' 3d matrix of size (BATCH_SIZE, max_len_simple, embedding_dim)
-    '''
-
-    batch = np.zeros([BATCH_SIZE, max_len_normal, embeddings_matrix_index.shape[1]])
-    simplified = np.zeros([BATCH_SIZE, max_len_simple, embeddings_matrix_index.shape[1]])
-
-    # Construct the data batch and run you backpropogation implementation
-    ### YOUR CODE HERE
-
-    rand_idx = np.random.choice(len(normal_sents), size=BATCH_SIZE)
-
-    for i in range(BATCH_SIZE):
-        batch[i] = create_sentence_matrix(embedding_matrix, embeddings_matrix_index, normal_sents[rand_idx[i]],
-                                          max_len_normal)
-        simplified[i] = create_sentence_matrix(embedding_matrix, embeddings_matrix_index, simple_sents[rand_idx[i]],
-                                               max_len_simple)
-
-    return batch, simplified
+# def create_batch_matrix(embedding_matrix, embeddings_matrix_index, normal_sents, simple_sents, max_len_simple,
+#                         max_len_normal):
+#     '''
+#     embedding an input batch of sentences to a 3d matrix of size (BATCH_SIZE, max_len_normal, embedding_dim)
+#     and an ouput 'gold' 3d matrix of size (BATCH_SIZE, max_len_simple, embedding_dim)
+#     '''
+#
+#     batch = np.zeros([BATCH_SIZE, max_len_normal, embeddings_matrix_index.shape[1]])
+#     simplified = np.zeros([BATCH_SIZE, max_len_simple, embeddings_matrix_index.shape[1]])
+#
+#     # Construct the data batch and run you backpropogation implementation
+#     ### YOUR CODE HERE
+#
+#     rand_idx = np.random.choice(len(normal_sents), size=BATCH_SIZE)
+#
+#     for i in range(BATCH_SIZE):
+#         batch[i] = create_sentence_matrix(embedding_matrix, embeddings_matrix_index, normal_sents[rand_idx[i]],
+#                                           max_len_normal)
+#         simplified[i] = create_sentence_matrix(embedding_matrix, embeddings_matrix_index, simple_sents[rand_idx[i]],
+#                                                max_len_simple)
+#
+#     return batch, simplified
 
 
 # fit a tokenizer
-def create_tokenizer(lines):
-    tokenizer = Tokenizer()
-    tokenizer.fit_on_texts(lines)
-    return tokenizer
+# def create_tokenizer(lines):
+#     tokenizer = Tokenizer()
+#     tokenizer.fit_on_texts(lines)
+#     return tokenizer
 
 
-# encode and pad sequences
-def encode_sequences(tokenizer, length, lines):
-    # integer encode sequences
-    X = tokenizer.texts_to_sequences(lines)
-    # pad sequences with 0 values
-    X = pad_sequences(X, maxlen=length, padding='post')
-    return X
-
-
-# one hot encode target sequence
-def encode_output(sequences, vocab_size):
-    ylist = list()
-    for sequence in sequences:
-        encoded = to_categorical(sequence, num_classes=vocab_size)
-        ylist.append(encoded)
-    y = np.array(ylist)
-    y = y.reshape((sequences.shape[0], sequences.shape[1], vocab_size))
-    return y
+# # encode and pad sequences
+# def encode_sequences(tokenizer, length, lines):
+#     # integer encode sequences
+#     X = tokenizer.texts_to_sequences(lines)
+#     # pad sequences with 0 values
+#     X = pad_sequences(X, maxlen=length, padding='post')
+#     return X
+#
+#
+# # one hot encode target sequence
+# def encode_output(sequences, vocab_size):
+#     ylist = list()
+#     for sequence in sequences:
+#         encoded = to_categorical(sequence, num_classes=vocab_size)
+#         ylist.append(encoded)
+#     y = np.array(ylist)
+#     y = y.reshape((sequences.shape[0], sequences.shape[1], vocab_size))
+#     return y
 
 
 def load_dataset(normal_sents, simple_sents, dataset_size):
@@ -301,22 +347,46 @@ def load_dataset(normal_sents, simple_sents, dataset_size):
     return normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test
 
 
+def check_and_convert_to_cuda(var,use_cuda):
+    return var.cuda() if use_cuda else var
+
+
+def construct_vocab(sentences, Vocabulary):
+    word2id = dict()
+    id2word = dict()
+    word2id[SOS_TOKEN] = 0
+    word2id[EOS_TOKEN] = 1
+    id2word[0] = SOS_TOKEN
+    id2word[1] = EOS_TOKEN
+    for sentence in sentences:
+        for word in sentence:
+            if word not in word2id:
+                word2id[word] = len(word2id)
+                id2word[len(word2id)-1] = word
+    return Vocabulary(word2id, id2word)
+
+
+# no use for eos at the moment
+def sent_to_word_id(sentences, vocab, max_len, eos=True):
+    data = []
+    for sent in sentences:
+        if eos:
+            end = [vocab.word2id[EOS_TOKEN]]
+        else:
+            end = []
+
+        # if len(sent) <= max_len:
+        data.append([vocab.word2id[w] for w in sent])
+
+    return data
+
+def word_id_to_sent(ids,vocab):
+    words = []
+    for id in ids:
+        words.append(vocab.id2word[id])
+    sent = ' '.join(words)
+    return sent
+
+
 if __name__ == '__main__':
-    '''
-    normal_sents,simple_sents = load_data('C:\\Users\\guyazov\\PycharmProjects\\SentenceSimplificationProject\\data\\wiki',None)
-    embedding_matrix, embeddings_matrix_index = build_embedding_matrix(GLOVE_PATH)
-    max_len = max_input_sentece_length(normal_sents)
-    sent = ["guy", "is", "great", "in", "soccer"]
-    mat = create_sentence_matrix(embedding_matrix,embeddings_matrix_index,sent,max_len)
-
-    '''
-    normal_sents, simple_sents = load_data(
-        'C:\\Users\\guyazov\\PycharmProjects\\SentenceSimplificationProject\\data\\wiki', None)
-    normal_sents_train, simple_sents_train, normal_sents_test, simple_sents_test = split_data(normal_sents,
-                                                                                              simple_sents)
-    normal_tokenizer = create_tokenizer(normal_sents)
-    simple_tokenizer = create_tokenizer(simple_sents)
-    normal_max_len = max_input_sentece_length(normal_sents)
-    simple_max_len = max_output_sentece_length(simple_sents)
-
-    print('d')
+    pass
