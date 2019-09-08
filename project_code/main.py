@@ -13,19 +13,18 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-VALIDATION_SPLIT = 0.33
+VALIDATION_SPLIT = 0.2
 EMBEDDING_DIM = 100
 HIDDEN_SIZE = 256
 DROP_PROB = 0.2
 MAX_LEN_OF_SENTENCE = 5
-FILTER_SIZES = (2, 3, 4)
 BATCH_SIZE = 256
 NUM_EPOCHES = 1000
 CONV_LAYERS = 5
 LIMIT_DATA_SIZE = 1000
 LEARNING_RATE = 0.0001
 DATASET_PATH = '../data/'
-ACTIVE_DATASET = 'newsela'
+ACTIVE_DATASET = 'wiki'
 
 # set to false for quicker run time (good for debugging)
 LOAD_EMBEDDINGS = True
@@ -78,22 +77,19 @@ def main():
         hidden_size = embedding_matrix_normal.shape[1]
 
     # fit network
-    print('Creating a model')
+    print('Creating model')
     model = Rephraser(EMBEDDING_DIM,simple_max_len, DROP_PROB, hidden_size,
                       BATCH_SIZE, NUM_EPOCHES, vocab_normal, vocab_simple,
                       voc_size_normal, voc_size_simple, word_freq, CONV_LAYERS, LEARNING_RATE, use_cuda,
                       embedding_matrix=(embedding_matrix_normal,embedding_matrix_simple))
-    #plot_model(model, to_file='model.png', show_shapes=True)
-    print('Fitting the model')
+    print('Training starteds')
     model.trainIters(input_dataset,output_dataset,print_every=PRINT_EVERY)
-    print('Done fitting')
-    # # test on some training sequences
 
-    # eval_set_norm = normal_sents_test[:EVAL_PRINT]
-    # eval_set_simp = simple_sents_test[:EVAL_PRINT]
+    eval_set_norm = normal_sents_test[:EVAL_PRINT]
+    eval_set_simp = simple_sents_test[:EVAL_PRINT]
 
-    eval_set_norm = normal_sents_train[:EVAL_PRINT]
-    eval_set_simp = simple_sents_train[:EVAL_PRINT]
+    # eval_set_norm = normal_sents_train[:EVAL_PRINT]
+    # eval_set_simp = simple_sents_train[:EVAL_PRINT]
 
     # for instance - eval_set_norm[i] is [303, 1485, 158, 24, 47, 1486, 1487, 1]
     eval_set_norm = sent_to_word_id(eval_set_norm, vocab_normal, MAX_LEN_OF_SENTENCE)

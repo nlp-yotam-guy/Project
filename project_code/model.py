@@ -77,12 +77,9 @@ class AttnDecoder(nn.Module):
         self.use_cuda = use_cuda
 
     def forward(self, y_i, g_i, h_i, cnn_a, cnn_c, input_sentence, pos, vocab_simple):
-        x = self.embedding(y_i)
-        #shape = [1]+list(g_i.size())
-        #g_i = torch.reshape(g_i, shape)
-        x = F.dropout(x, self.dropout, self.training)
-        d_i = self.transform_lstm_hidden_in(h_i) + x
-        # print(d_i.size(), cnn_a.size())
+        g_i = self.embedding(y_i)
+        g_i = F.dropout(g_i, self.dropout, self.training)
+        d_i = self.transform_lstm_hidden_in(h_i) + g_i
         s_i = torch.bmm(d_i, cnn_a)
         s_i = s_i.view(1, -1)
         a_i = F.softmax(s_i)
@@ -95,22 +92,10 @@ class AttnDecoder(nn.Module):
         lstm_hidden = F.dropout(lstm_h[0], self.dropout, self.training)
         softmax_output = F.log_softmax(self.dense_o(lstm_hidden))
 
-        # if pos < len(input_sentence) and input_sentence[pos].item() not in vocab_simple.id2word:
-        #     _, j_star = a_i[0].max(0)
-        #     x_j_star = input_sentence[j_star].item()
-        #     if x_j_star > len(vocab_simple.id2word):
-        #         return softmax_output, gru_hidden
-        #     else:
-        #         softmax_output.fill_(0)
-        #         softmax_output[0][x_j_star] = 1
-        #         softmax_output_copy = F.log_softmax(softmax_output_copy)
-        #         softmax_output_copy = softmax_output_copy.view(1, len(softmax_output_copy))
-        #         softmax_output_copy = softmax_output_copy.cuda() if self.use_cuda else softmax_output_copy
-        #         return softmax_output_copy, gru_hidden
         return softmax_output, lstm_hidden
 
 
-    # function to initialize the hidden layer of GRU.
+    # function to initialize the hidden layer of LSTM.
     def initHidden(self):
         result = Variable(torch.zeros(self.n_layers_lstm, 1, self.hidden_size_lstm))
         if self.use_cuda:
@@ -169,8 +154,6 @@ class Rephraser:
 
         self.define()
 
-        # print(self.model.summary())
-
     def init_weights(self,m):
 
         if not hasattr(m, 'weight'):
@@ -226,43 +209,14 @@ class Rephraser:
                 break
         return batch
 
-    def get_constrained_id(self,decoder_output, word_count):
-        k = 1
-        cont = False
-        while not cont:
-            topv, topi = decoder_output.data.topk(k)
-            ni = topi[0][-1]
-            id = ni.item()
-            if id in self.vocab_normal.id2word:
-                w = self.vocab_normal.id2word[id]
-            else:
-                w = self.vocab_simple.id2word[id]
-            if w in word_count:
-                word_count[w] += 1
-                cont = True
-            else:
-                word_count[w] = 1
-                cont = True
-            if word_count[w] > self.word_freq[w]:
-                k += 1
-                cont = False
-        return ni
 
     def get_initial_encoding(self):
-        # decoder_output = torch.normal(0.5, 1, (1, self.vocab_size_simple))
         decoder_output = np.random.normal(0, 1, (1, self.vocab_size_simple)).astype(np.float32)
         decoder_output = torch.from_numpy(decoder_output)
         decoder_output = torch.softmax(decoder_output, -1)
         decoder_output = decoder_output.cuda() if self.use_cuda else decoder_output
         decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
         return decoder_output
-
-    # def to_one_hot(self,idx):
-    #     vec = np.zeros((1,self.vocab_size))
-    #     vec[0][idx] = 1
-    #     vec = Variable(torch.LongTensor(vec))
-    #     vec = vec.cuda() if self.use_cuda else vec
-    #     return vec
 
 
     def save_model(self, iter, loss):
@@ -281,32 +235,18 @@ class Rephraser:
     def trainIters(self, input_dataset, output_dataset, print_every=100):
 
         # Sample a training pair
-        # training_pairs = list(zip(*(input_dataset, output_dataset)))
-
         training_pairs = [(input_dataset[i],output_dataset[i]) for i in range(len(input_dataset))]
         idx = list(range(len(training_pairs)))
-
-        # k = 10
-        # for i in range(k):
-        #     print([self.vocab.id2word[j] for j in training_pairs[i][0]])
-        #     print([self.vocab.id2word[j] for j in training_pairs[i][1]], '\n')
-
-        print_loss_total = 0
-
-        # The important part of the code is the 3rd line, which performs one training
-        # step on the batch. We are using a variable `print_loss_total` to monitor
-        # the loss value as the training progresses
 
         for itr in range(1, self.n_epoches + 1):
             random.shuffle(idx)
             training_pair = self.create_batch(training_pairs,idx)
-            # for instance - training pair[0] is a normal "sentence" with shape
+            # for instance - training pair[0] is a tokenized sentence
             #  => [107, 655,  68, 106,  11, 656, 455, 657, 158,   1]
-            # training_pair = random.sample(training_pairs, k=self.batch_size)
 
-            # for instance - input variable with shape=> [389, 382, 383,  72, 216, 217, 156, 388,   1]
-            # for instance - target variable with shape => [ 35, 115,   4, 958, 959,   8, 961, 962, 963,   1]
             input_variable, target_variable = list(zip(*training_pair))
+
+            # # uncomment to print sentences:
             # k=10
             # for i in range(k):
             #     print([self.vocab_normal.id2word[j.item()] for j in input_variable[i]])
@@ -335,6 +275,7 @@ class Rephraser:
             input_variable = input_variables[count]
             output_variable = output_variables[count]
 
+            # # uncomment to print sentences:
             # a = [input_variable[k].item() for k in range(len(input_variable))]
             # print([self.vocab_normal.id2word[a[i]] for i in range(len(input_variable))])
             # b = [output_variable[k].item() for k in range(len(output_variable))]
@@ -343,13 +284,8 @@ class Rephraser:
             input_length = input_variable.size()[0]
             output_length = output_variable.size()[0]
 
-            # input_length = len(input_variable)
-            # output_length = len(output_variable)
-
             loss = 0
 
-            # Encoder outputs: We use this variable to collect the outputs
-            # from encoder after each time step. This will be sent to the decoder.
             position_ids = Variable(torch.LongTensor(list(range(0, input_length))))
             position_ids = position_ids.cuda() if self.use_cuda else position_ids
 
@@ -366,7 +302,6 @@ class Rephraser:
             decoder_output = self.get_initial_encoding()
             decoder_hidden = self.decoder.initHidden()
 
-            word_count = dict()
             for i in range(output_length):
                 decoder_hidden = decoder_hidden[-1].view(1,1,-1)
                 decoder_output, decoder_hidden = \
@@ -374,7 +309,6 @@ class Rephraser:
                                  self.vocab_simple)
                 topv, topi = decoder_output.data.topk(1)
                 ni = topi[0].item()
-                # ni = self.get_constrained_id(decoder_output,word_count)
 
                 if use_teacher_forcing:
                     prev_word = Variable(torch.LongTensor([[output_variable[i]]]))
@@ -384,10 +318,7 @@ class Rephraser:
                 # one_hot = self.to_one_hot(output_variable[i])
                 out = Variable(torch.LongTensor([output_variable[i]]))
                 out = out.cuda() if self.use_cuda else out
-                loss += self.criterion(decoder_output, out)
-
-                # to feed the RNN step with weighted sum of the embedding matrix
-                # decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
+                loss += self.criterion(decoder_output, out))
 
                 if ni == 1:  # EOS
                     break
@@ -405,11 +336,9 @@ class Rephraser:
         self.encoder_a.training = False
         self.encoder_c.training = False
         self.decoder.training = False
-        # source_sent = sent_to_word_id(np.array([sent_pair[0]]), vocab, self.max_len)
         source_sent = sent_pair[0]
         if (len(source_sent) == 0):
             return
-        # source_sent = source_sent[0]
         input_variable = Variable(torch.LongTensor(source_sent))
 
         if self.use_cuda:
@@ -431,22 +360,17 @@ class Rephraser:
         target_sent = []
         ni = 0
         out_length = 0
-        word_count = dict()
         while not ni == 1 and out_length < self.max_len:
             decoder_hidden = decoder_hidden[-1].view(1, 1, -1)
             decoder_output, decoder_hidden = \
                 self.decoder(prev_word, decoder_output, decoder_hidden, cnn_a, cnn_c, input_variable, out_length, self.vocab_simple)
-            # print("softmax: ", decoder_output)
-            # print("top: ", decoder_output.data.topk(1))
-            # print(self.vocab_simple.id2word[ni])
+
             topv, topi = decoder_output.data.topk(1)
             ni = topi[0].item()
             target_sent.append(self.vocab_simple.id2word[ni])
             prev_word = Variable(torch.LongTensor([[ni]]))
             prev_word = prev_word.cuda() if self.use_cuda else prev_word
             out_length += 1
-            # decoder_output = torch.mm(decoder_output, self.embedding_matrix_simple)
-
 
         orig_sent = word_id_to_sent(sent_pair[0], self.vocab_normal)
         expected_sent = word_id_to_sent(sent_pair[1], self.vocab_simple)
