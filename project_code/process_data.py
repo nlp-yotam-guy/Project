@@ -11,31 +11,6 @@ NEWSELA = '/newsela_articles_20150302.aligned.sents.txt'
 SOS_TOKEN = "<sos>"
 EOS_TOKEN = "."
 
-# need to convert to pytorch equivalent
-# class Batch_Generator(Sequence):
-#     def __init__(self, normal, simple, tokenizer, embedding_matrix, batch_size, max_len_normal, max_len_simple):
-#         self.normal = normal
-#         self.simple = simple
-#         self.tokenizer = tokenizer
-#         self.embedding_matrix = embedding_matrix
-#         self.batch_size = batch_size
-#         self.max_len_normal = max_len_normal
-#         self.max_len_simple = max_len_simple
-#
-#     def __len__(self):
-#         return int(np.ceil(len(self.normal) / float(self.batch_size)))
-#
-#     def __getitem__(self, idx):
-#         batch_x = self.normal[idx * self.batch_size: (idx + 1) * self.batch_size]
-#         batch_y = self.simple[idx * self.batch_size: (idx + 1) * self.batch_size]
-#
-#         train_normal = encode_sequences(self.tokenizer, self.max_len_normal, batch_x)
-#         train_simple = encode_sequences(self.tokenizer, self.max_len_simple, batch_y)
-#         train_simple = encode_output(train_simple, len(self.tokenizer.word_index) + 1)
-#
-#         # return (train_normal, np.arange(len(train_normal))), train_simple
-#         return train_normal, train_simple
-
 # Turn a Unicode string to plain ASCII, thanks to
 # https://stackoverflow.com/a/518232/2809427
 def unicodeToAscii(s):
@@ -78,9 +53,6 @@ def load_wiki(wiki_normal, wiki_simple, limit_sent_len=-1, limit_data=-1):
 
         normal_sent = normal_sent.split(' ')
 
-        # if len(normal_sent) > limit_sent_len:
-        #     continue
-
         simple_sent = simple_sent.split(' ')
         del normal_sent[-1]
         normal_sent.append('.')
@@ -113,8 +85,7 @@ def load_newsela(newsela, limit_sent_len=-1, limit_data=-1):
             continue
         normal_sent = splited_line[-2]
         normal_sent = normalizeString(normal_sent).split(' ')
-        # if len(normal_sent) > limit_sent_len:
-        #     continue
+
         if normal_sent[-1] != '.':
             normal_sent.append('.')
         simple_sent = splited_line[-1]
@@ -150,47 +121,6 @@ def filter_sentences(normal,simple,limit):
             norm.append(normal[i])
             simp.append(simple[i])
     return norm,simp
-
-#
-# def create_vector_unknown_token(glove):
-#     '''
-#     :return: a vector for unknown token
-#     '''
-#     # Get number of vectors and hidden dim
-#     with open(GLOVE_PATH, 'r', encoding="utf8") as f:
-#         for i, line in enumerate(f):
-#             pass
-#     n_vec = i + 1
-#     hidden_dim = len(line.split(' ')) - 1
-#
-#     vecs = np.zeros((n_vec, hidden_dim), dtype=np.float32)
-#
-#     with open(GLOVE_PATH, 'r', encoding="utf8") as f:
-#         for i, line in enumerate(f):
-#             vecs[i] = np.array([float(n) for n in line.split(' ')[1:]], dtype=np.float32)
-#
-#     average_vec = np.mean(vecs, axis=0)
-#     return average_vec
-
-
-def get_word_frequency(sents):
-    frequencies = dict()
-    for sent in sents:
-        cur_sent_freqs = dict()
-        for word in sent:
-            if word in cur_sent_freqs:
-                cur_sent_freqs[word] += 1
-            else:
-                cur_sent_freqs[word] = 1
-        for word in cur_sent_freqs:
-            if word in frequencies:
-                frequencies[word].append(cur_sent_freqs[word])
-            else:
-                frequencies[word] = [cur_sent_freqs[word]]
-    for word in frequencies:
-        avg = sum(frequencies[word]) // len(frequencies[word])
-        frequencies[word] = avg
-    return frequencies
 
 
 def split_data(normal_sents, simple_sents):
@@ -258,84 +188,6 @@ def max_output_sentece_length(simple_sents):
     return len(max_len)
 
 
-# def get_vocab_size(embedding_matrix):
-#     return embedding_matrix.shape[0]
-
-
-# def pad_sentences(sentences):
-#     max_len = max_input_sentece_length(sentences)
-#     for sent in sentences:
-#         need_to_pad = max_len - len(sent)
-#         sent.extend([0]*need_to_pad)
-#     return
-
-
-# def create_sentence_matrix(embedding_matrix, embeddings_matrix_index, sentence, unk_vector, max_len):
-#     '''
-#     embedding a sentence to a matrix of size (max_sent_len, embedding_dim)
-#     '''
-#
-#     # sent_matrix = []
-#     sent_matrix = np.zeros((max_len, embedding_matrix.shape[1]))
-#     for i, word in enumerate(sentence):
-#         if word.lower() in embeddings_matrix_index:
-#             sent_matrix[i] = np.array(embedding_matrix[embeddings_matrix_index[word.lower()]])
-#         else:
-#             sent_matrix[i] = np.array(unk_vector)
-#     return sent_matrix
-
-
-# def create_batch_matrix(embedding_matrix, embeddings_matrix_index, normal_sents, simple_sents, max_len_simple,
-#                         max_len_normal):
-#     '''
-#     embedding an input batch of sentences to a 3d matrix of size (BATCH_SIZE, max_len_normal, embedding_dim)
-#     and an ouput 'gold' 3d matrix of size (BATCH_SIZE, max_len_simple, embedding_dim)
-#     '''
-#
-#     batch = np.zeros([BATCH_SIZE, max_len_normal, embeddings_matrix_index.shape[1]])
-#     simplified = np.zeros([BATCH_SIZE, max_len_simple, embeddings_matrix_index.shape[1]])
-#
-#     # Construct the data batch and run you backpropogation implementation
-#     ### YOUR CODE HERE
-#
-#     rand_idx = np.random.choice(len(normal_sents), size=BATCH_SIZE)
-#
-#     for i in range(BATCH_SIZE):
-#         batch[i] = create_sentence_matrix(embedding_matrix, embeddings_matrix_index, normal_sents[rand_idx[i]],
-#                                           max_len_normal)
-#         simplified[i] = create_sentence_matrix(embedding_matrix, embeddings_matrix_index, simple_sents[rand_idx[i]],
-#                                                max_len_simple)
-#
-#     return batch, simplified
-
-
-# fit a tokenizer
-# def create_tokenizer(lines):
-#     tokenizer = Tokenizer()
-#     tokenizer.fit_on_texts(lines)
-#     return tokenizer
-
-
-# # encode and pad sequences
-# def encode_sequences(tokenizer, length, lines):
-#     # integer encode sequences
-#     X = tokenizer.texts_to_sequences(lines)
-#     # pad sequences with 0 values
-#     X = pad_sequences(X, maxlen=length, padding='post')
-#     return X
-#
-#
-# # one hot encode target sequence
-# def encode_output(sequences, vocab_size):
-#     ylist = list()
-#     for sequence in sequences:
-#         encoded = to_categorical(sequence, num_classes=vocab_size)
-#         ylist.append(encoded)
-#     y = np.array(ylist)
-#     y = y.reshape((sequences.shape[0], sequences.shape[1], vocab_size))
-#     return y
-
-
 def load_dataset(normal_sents, simple_sents, dataset_size):
     # load training set and test set
     # Cut the datasets randomly
@@ -386,7 +238,3 @@ def word_id_to_sent(ids,vocab):
         words.append(vocab.id2word[id])
     sent = ' '.join(words)
     return sent
-
-
-if __name__ == '__main__':
-    pass
